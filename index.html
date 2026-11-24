@@ -1,0 +1,2273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital FLHA Safety Portal</title>
+
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Signature Pad Library -->
+    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
+    <!-- jsPDF & AutoTable for PDF Generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.1/jspdf.plugin.autotable.min.js"></script>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans antialiased min-h-screen">
+
+    <!-- ===================================================================== -->
+    <!-- TOAST NOTIFICATION                                                    -->
+    <!-- ===================================================================== -->
+    <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] hidden max-w-md w-[90%] sm:w-auto px-5 py-3.5 rounded-xl shadow-xl text-white text-sm font-semibold flex items-center gap-3 transition-all duration-300">
+        <span id="toast-icon" class="text-lg shrink-0"></span>
+        <span id="toast-message">Notification</span>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- CUSTOM IN-APP CONFIRMATION MODAL (Replaces native confirm/alert)      -->
+    <!-- ===================================================================== -->
+    <div id="confirm-modal" class="fixed inset-0 z-[90] hidden items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-200 animate-fade-in">
+            <div class="p-5 sm:p-6">
+                <div class="flex items-start gap-4">
+                    <div id="modal-icon-wrap" class="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 bg-blue-100 text-blue-700">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 id="modal-title" class="text-lg font-bold text-slate-900">Confirm Action</h3>
+                        <p id="modal-message" class="text-sm text-slate-600 mt-1 leading-relaxed">Are you sure you want to proceed?</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-slate-50 px-5 py-3.5 flex justify-end gap-3 border-t border-slate-200">
+                <button id="modal-cancel-btn" type="button" class="px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-100 transition">
+                    Cancel
+                </button>
+                <button id="modal-confirm-btn" type="button" class="px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-blue-700 hover:bg-blue-800 shadow-sm transition">
+                    Confirm
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- AUTHENTICATION SCREEN                                                 -->
+    <!-- ===================================================================== -->
+    <div id="auth-container" class="min-h-screen flex flex-col justify-center items-center p-4 bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900">
+        <div class="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-200/80 overflow-hidden">
+            <!-- Brand Banner -->
+            <div class="bg-slate-900 px-6 py-7 text-center border-b-4 border-amber-400">
+                <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-amber-400 text-slate-900 mb-3 shadow-lg">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+                    </svg>
+                </div>
+                <h1 class="text-2xl font-extrabold text-white tracking-tight">Safety Portal</h1>
+                <p class="text-xs font-medium text-slate-300 mt-1 uppercase tracking-wider">Field Level Hazard Assessment (FLHA)</p>
+            </div>
+
+            <!-- Auth Form Body -->
+            <div class="p-6 sm:p-8">
+                <div id="auth-error" class="hidden bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-4 text-sm font-medium"></div>
+                <div id="auth-info" class="hidden bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-3 rounded-xl mb-4 text-sm font-medium"></div>
+
+                <div class="space-y-4">
+                    <div>
+                        <label for="auth-email" class="block text-xs font-bold text-slate-600 uppercase tracking-wide mb-1.5">Email Address</label>
+                        <input type="email" id="auth-email" autocomplete="email" placeholder="you@company.com"
+                            class="w-full px-4 py-3 rounded-xl border border-slate-300 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition text-sm">
+                    </div>
+
+                    <div>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label for="auth-password" class="block text-xs font-bold text-slate-600 uppercase tracking-wide">Password</label>
+                            <button id="btn-reset" type="button" class="text-xs font-semibold text-blue-700 hover:text-blue-900 hover:underline">Forgot Password?</button>
+                        </div>
+                        <input type="password" id="auth-password" autocomplete="current-password" placeholder="Enter your password"
+                            class="w-full px-4 py-3 rounded-xl border border-slate-300 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition text-sm">
+                    </div>
+
+                    <div class="pt-1 space-y-2.5">
+                        <button id="btn-signin" type="button"
+                            class="w-full bg-blue-800 hover:bg-blue-900 text-white font-bold py-3.5 rounded-xl shadow-md transition flex items-center justify-center gap-2 text-sm">
+                            Sign In
+                        </button>
+                        <button id="btn-signup" type="button"
+                            class="w-full bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold py-3 rounded-xl border border-slate-300 transition text-sm">
+                            Create New Account
+                        </button>
+                    </div>
+
+                    <!-- Divider -->
+                    <div class="relative py-2">
+                        <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-slate-200"></div></div>
+                        <div class="relative flex justify-center text-xs uppercase"><span class="bg-white px-3 text-slate-400 font-semibold">Or continue with</span></div>
+                    </div>
+
+                    <!-- Google & Quick Personal Access -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <button id="btn-google" type="button"
+                            class="w-full bg-white hover:bg-slate-50 text-slate-700 font-semibold py-2.5 px-4 rounded-xl border border-slate-300 shadow-xs transition flex items-center justify-center gap-2 text-sm">
+                            <svg class="w-4 h-4" viewBox="0 0 24 24">
+                                <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
+                                <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.11-6.72-4.96H1.29v3.14C3.26 21.3 7.31 24 12 24z"/>
+                                <path fill="#FBBC05" d="M5.28 14.24c-.24-.72-.38-1.49-.38-2.24s.14-1.52.38-2.24V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.99-3.14z"/>
+                                <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.99 3.14c.95-2.85 3.6-4.96 6.72-4.96z"/>
+                            </svg>
+                            Google
+                        </button>
+                        <button id="btn-guest" type="button"
+                            class="w-full bg-amber-50 hover:bg-amber-100 text-amber-900 font-semibold py-2.5 px-4 rounded-xl border border-amber-300 transition flex items-center justify-center gap-2 text-sm">
+                            Quick Access
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <p class="text-slate-400 text-xs mt-5 text-center">Personal Field Safety Documentation &amp; Hazard Control</p>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- MAIN APPLICATION CONTENT (Hidden until authenticated)                 -->
+    <!-- ===================================================================== -->
+    <div id="app-content" class="hidden pb-24">
+
+        <!-- Sidebar Overlay -->
+        <div id="sidebar-overlay" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden transition-opacity" onclick="toggleSidebar()"></div>
+
+        <!-- Slide-out Sidebar Menu -->
+        <aside id="sidebar" class="fixed top-0 left-0 h-full w-72 max-w-[85vw] bg-white z-[60] -translate-x-full transition-transform duration-300 ease-out shadow-2xl flex flex-col">
+            <div class="p-5 bg-slate-900 text-white border-b-4 border-amber-400 flex justify-between items-center">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-amber-400 text-slate-900 flex items-center justify-center font-extrabold text-sm">FL</div>
+                    <div>
+                        <div class="font-bold text-base leading-tight">Safety Portal</div>
+                        <div id="sidebar-user-email" class="text-[11px] text-slate-300 truncate max-w-[165px]">Signed in</div>
+                    </div>
+                </div>
+                <button type="button" onclick="toggleSidebar()" class="w-9 h-9 rounded-lg hover:bg-slate-800 flex items-center justify-center text-slate-300 hover:text-white text-2xl transition">&times;</button>
+            </div>
+
+            <nav class="flex-1 overflow-y-auto p-4 space-y-6">
+                <!-- Company Section -->
+                <div>
+                    <h3 class="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-3 mb-2">Organization</h3>
+                    <button type="button" id="nav-profile" onclick="switchView('profile')" class="nav-item flex items-center gap-3 w-full px-3 py-3 text-slate-700 hover:bg-slate-100 rounded-xl text-left text-sm font-semibold transition">
+                        <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
+                        </svg>
+                        Company Profile
+                    </button>
+                </div>
+
+                <!-- Safety Forms Section -->
+                <div>
+                    <h3 class="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-3 mb-2">Safety Forms</h3>
+                    <div class="space-y-1.5">
+                        <button type="button" id="nav-flha" onclick="switchView('flha_new')" class="nav-item flex items-center gap-3 w-full px-3 py-3 text-blue-800 bg-blue-50 rounded-xl text-left text-sm font-semibold transition">
+                            <svg class="w-5 h-5 text-blue-700" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                            </svg>
+                            New FLHA Form
+                        </button>
+                        <button type="button" id="nav-history" onclick="switchView('history')" class="nav-item flex items-center gap-3 w-full px-3 py-3 text-slate-700 hover:bg-slate-100 rounded-xl text-left text-sm font-semibold transition">
+                            <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" />
+                            </svg>
+                            History / Saved Forms
+                        </button>
+                    </div>
+                </div>
+            </nav>
+
+            <!-- Sign Out Footer -->
+            <div class="p-4 border-t border-slate-200 bg-slate-50">
+                <button id="btn-signout-sidebar" type="button" class="flex items-center gap-3 w-full px-3 py-2.5 text-red-600 hover:bg-red-50 rounded-xl font-semibold text-sm transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
+                    </svg>
+                    Sign Out
+                </button>
+            </div>
+        </aside>
+
+        <!-- Sticky Top Header -->
+        <header class="bg-slate-900 text-white shadow-lg sticky top-0 z-40 border-b-4 border-amber-400">
+            <div class="max-w-4xl mx-auto px-4 py-3.5 flex items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
+                    <button type="button" onclick="toggleSidebar()" aria-label="Open Menu"
+                        class="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-white transition shrink-0">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                        </svg>
+                    </button>
+                    <div>
+                        <h1 class="text-lg sm:text-xl font-extrabold tracking-tight leading-tight">Digital FLHA</h1>
+                        <p class="text-[11px] sm:text-xs text-slate-300 font-medium">Field Level Hazard Assessment</p>
+                    </div>
+                </div>
+                <div class="text-right shrink-0 bg-slate-800/80 px-3 py-1.5 rounded-xl border border-slate-700">
+                    <div id="current-date" class="text-xs font-bold text-amber-400"></div>
+                    <div id="current-time" class="text-[11px] font-mono text-slate-200"></div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Container -->
+        <main class="max-w-4xl mx-auto px-3 sm:px-5 pt-5 space-y-6">
+
+            <!-- ============================================================= -->
+            <!-- VIEW 1: FLHA FORM                                             -->
+            <!-- ============================================================= -->
+            <div id="view-flha" class="space-y-6">
+
+                <!-- Status Bar (Draft / Completed) -->
+                <div id="form-status-bar" class="hidden rounded-xl px-4 py-3 text-sm font-bold flex items-center justify-between border shadow-xs">
+                    <div class="flex items-center gap-2">
+                        <span id="form-status-dot" class="w-2.5 h-2.5 rounded-full"></span>
+                        <span id="form-status-text">Draft Mode</span>
+                    </div>
+                    <button type="button" onclick="startNewFormPrompt()" class="text-xs underline opacity-80 hover:opacity-100">Start Fresh</button>
+                </div>
+
+                <!-- Job Details Section -->
+                <section class="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+                        <div class="flex items-center gap-2.5">
+                            <span class="w-8 h-8 rounded-lg bg-blue-900 text-white flex items-center justify-center text-sm font-bold">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                                </svg>
+                            </span>
+                            <h2 class="text-lg font-bold text-slate-900">Job Details</h2>
+                        </div>
+                        <span class="text-xs font-medium text-slate-400">* Project Name required</span>
+                    </div>
+
+                    <input type="hidden" id="doc-id">
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Company Name</label>
+                            <input type="text" id="company-name" placeholder="e.g., Apex Industrial Ltd."
+                                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none text-sm transition">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Project Name *</label>
+                            <input type="text" id="project-name" placeholder="e.g., North Plant Maintenance"
+                                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none text-sm transition">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Project Number</label>
+                            <input type="text" id="project-number" placeholder="e.g., PRJ-2026-042"
+                                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none text-sm transition">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Site Location / Address</label>
+                            <input type="text" id="site-address" placeholder="Street address or LSD"
+                                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none text-sm transition">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Task Location</label>
+                            <input type="text" id="task-location" placeholder="e.g., Unit 4 Mezzanine"
+                                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none text-sm transition">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Emergency Number</label>
+                            <input type="text" id="emergency-number" placeholder="e.g., 911 / Site Dispatch"
+                                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none text-sm transition">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Muster Point</label>
+                            <input type="text" id="muster-point" placeholder="e.g., Main North Gate"
+                                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none text-sm transition">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Supervisor Name</label>
+                            <input type="text" id="supervisor-name-field" placeholder="Site supervisor"
+                                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none text-sm transition">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Description of Work</label>
+                            <textarea id="description-work" rows="2" placeholder="Briefly describe the scope of work to be performed..."
+                                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none text-sm transition"></textarea>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 10 Collapsible Hazard Checklist Accordions -->
+                <section class="space-y-3">
+                    <div class="flex items-center justify-between px-1">
+                        <h2 class="text-base font-bold text-slate-800 uppercase tracking-wide">Hazard &amp; Safety Checklists</h2>
+                        <button type="button" onclick="toggleAllAccordions()" id="btn-toggle-all" class="text-xs font-semibold text-blue-700 hover:text-blue-900">Expand All</button>
+                    </div>
+
+                    <form id="hazard-form" class="space-y-3" onsubmit="return false;">
+                        <!-- 1. Ergonomic Hazards -->
+                        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden" data-accordion="sec-ergo">
+                            <button type="button" onclick="toggleSection('sec-ergo')" class="w-full px-4 sm:px-5 py-4 flex justify-between items-center bg-slate-50/70 hover:bg-slate-100/80 transition text-left">
+                                <div class="flex items-center gap-3">
+                                    <span class="w-7 h-7 rounded-lg bg-blue-100 text-blue-900 font-bold text-xs flex items-center justify-center shrink-0">1</span>
+                                    <span class="font-bold text-slate-800 text-sm sm:text-base">Ergonomic Hazards</span>
+                                </div>
+                                <div class="flex items-center gap-2.5">
+                                    <span id="badge-sec-ergo" class="hidden px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-700 text-white">0</span>
+                                    <svg id="chev-sec-ergo" class="w-5 h-5 text-slate-400 transition-transform duration-200" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+                                </div>
+                            </button>
+                            <div id="sec-ergo" class="hidden px-4 sm:px-5 pb-5 pt-3 border-t border-slate-100">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-blue-50/50 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4 rounded text-blue-700 focus:ring-blue-600 hazard-cb" value="1. Repetitive Motion"><span>Repetitive Motion</span></label>
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-blue-50/50 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4 rounded text-blue-700 focus:ring-blue-600 hazard-cb" value="2. Heavy Lifting"><span>Heavy Lifting</span></label>
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-blue-50/50 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4 rounded text-blue-700 focus:ring-blue-600 hazard-cb" value="3. Awkward Positions"><span>Awkward Positions</span></label>
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-blue-50/50 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4 rounded text-blue-700 focus:ring-blue-600 hazard-cb" value="4. Over Exertion"><span>Over Exertion</span></label>
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-blue-50/50 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4 rounded text-blue-700 focus:ring-blue-600 hazard-cb" value="5. Pinch Points"><span>Pinch Points</span></label>
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-blue-50/50 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4 rounded text-blue-700 focus:ring-blue-600 hazard-cb" value="6. Body in Line of Fire"><span>Body in Line of Fire</span></label>
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-blue-50/50 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4 rounded text-blue-700 focus:ring-blue-600 hazard-cb" value="7. Working Above Your Head"><span>Working Above Your Head</span></label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 2. Working at Heights Hazards -->
+                        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden" data-accordion="sec-heights">
+                            <button type="button" onclick="toggleSection('sec-heights')" class="w-full px-4 sm:px-5 py-4 flex justify-between items-center bg-slate-50/70 hover:bg-slate-100/80 transition text-left">
+                                <div class="flex items-center gap-3">
+                                    <span class="w-7 h-7 rounded-lg bg-blue-100 text-blue-900 font-bold text-xs flex items-center justify-center shrink-0">2</span>
+                                    <span class="font-bold text-slate-800 text-sm sm:text-base">Working at Heights Hazards</span>
+                                </div>
+                                <div class="flex items-center gap-2.5">
+                                    <span id="badge-sec-heights" class="hidden px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-700 text-white">0</span>
+                                    <svg id="chev-sec-heights" class="w-5 h-5 text-slate-400 transition-transform duration-200" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+                                </div>
+                            </button>
+                            <div id="sec-heights" class="hidden px-4 sm:px-5 pb-5 pt-3 border-t border-slate-100">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-blue-50/50 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4 rounded text-blue-700 hazard-cb" value="8. Barricades/Flagging/Signs"><span>Barricades/Flagging/Signs</span></label>
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-blue-50/50 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4 rounded text-blue-700 hazard-cb" value="9. Hole Coverings in Place"><span>Hole Coverings in Place</span></label>
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-blue-50/50 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4 rounded text-blue-700 hazard-cb" value="10. Falling Items"><span>Falling Items</span></label>
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-blue-50/50 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4 rounded text-blue-700 hazard-cb" value="11. Powered Platforms"><span>Powered Platforms</span></label>
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-blue-50/50 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4 rounded text-blue-700 hazard-cb" value="12. Others Working Overhead/Below"><span>Others Working Overhead/Below</span></label>
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-blue-50/50 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4 rounded text-blue-700 hazard-cb" value="13. Fall Arrest/Tie-off"><span>Fall Arrest/Tie-off</span></label>
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-blue-50/50 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4 rounded text-blue-700 hazard-cb" value="14. Tie Point Identified"><span>Tie Point Identified</span></label>
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-blue-50/50 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4 rounded text-blue-700 hazard-cb" value="15. Ladders"><span>Ladders</span></label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 3. Access/Egress Hazards -->
+                        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden" data-accordion="sec-access">
+                            <button type="button" onclick="toggleSection('sec-access')" class="w-full px-4 sm:px-5 py-4 flex justify-between items-center bg-slate-50/70 hover:bg-slate-100/80 transition text-left">
+                                <div class="flex items-center gap-3">
+                                    <span class="w-7 h-7 rounded-lg bg-blue-100 text-blue-900 font-bold text-xs flex items-center justify-center shrink-0">3</span>
+                                    <span class="font-bold text-slate-800 text-sm sm:text-base">Access/Egress Hazards</span>
+                                </div>
+                                <div class="flex items-center gap-2.5">
+                                    <span id="badge-sec-access" class="hidden px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-700 text-white">0</span>
+                                    <svg id="chev-sec-access" class="w-5 h-5 text-slate-400 transition-transform duration-200" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+                                </div>
+                            </button>
+                            <div id="sec-access" class="hidden px-4 sm:px-5 pb-5 pt-3 border-t border-slate-100">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-blue-50/50 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4 rounded text-blue-700 hazard-cb" value="16. Aerial Lift/Man Basket Inspected"><span>Aerial Lift/Man Basket Inspected</span></label>
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-blue-50/50 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4 rounded text-blue-700 hazard-cb" value="17. Scaffold Inspected/Tagged"><span>Scaffold Inspected/Tagged</span></label>
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-blue-50/50 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4 rounded text-blue-700 hazard-cb" value="18. Ladders Tied Off"><span>Ladders Tied Off</span></label>
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-blue-50/50 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4 rounded text-blue-700 hazard-cb" value="19. Slips/Trips"><span>Slips/Trips</span></label>
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-blue-50/50 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4 rounded text-blue-700 hazard-cb" value="20. Hoisting Tools/Equipment"><span>Hoisting Tools/Equipment</span></label>
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-blue-50/50 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4 rounded text-blue-700 hazard-cb" value="21. Excavations/Trenching"><span>Excavations/Trenching</span></label>
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-blue-50/50 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4 rounded text-blue-700 hazard-cb" value="22. Confined Space"><span>Confined Space</span></label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 4. Personal Limitation Hazards -->
+                        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden" data-accordion="sec-personal">
+                            <button type="button" onclick="toggleSection('sec-personal')" class="w-full px-4 sm:px-5 py-4 flex justify-between items-center bg-slate-50/70 hover:bg-slate-100/80 transition text-left">
+                                <div class="flex items-center gap-3">
+                                    <span class="w-7 h-7 rounded-lg bg-blue-100 text-blue-900 font-bold text-xs flex items-center justify-center shrink-0">4</span>
+                                    <span class="font-bold text-slate-800 text-sm sm:text-base">Personal Limitation Hazards</span>
+                                </div>
+                                <div class="flex items-center gap-2.5">
+                                    <span id="badge-sec-personal" class="hidden px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-700 text-white">0</span>
+                                    <svg id="chev-sec-personal" class="w-5 h-5 text-slate-400 transition-transform duration-200" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+                                </div>
+                            </button>
+                            <div id="sec-personal" class="hidden px-4 sm:px-5 pb-5 pt-3 border-t border-slate-100">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-blue-50/50 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4 rounded text-blue-700 hazard-cb" value="23. Working Alone"><span>Working Alone</span></label>
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-blue-50/50 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4 rounded text-blue-700 hazard-cb" value="24. Violence"><span>Violence</span></label>
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-blue-50/50 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4 rounded text-blue-700 hazard-cb" value="25. First Time Performing Tasks"><span>First Time Performing Tasks</span></label>
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-blue-50/50 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4 rounded text-blue-700 hazard-cb" value="26. Instructions Unclear"><span>Instructions Unclear</span></label>
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-blue-50/50 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4 rounded text-blue-700 hazard-cb" value="27. Physical Limitations"><span>Physical Limitations</span></label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 5. Activity Hazards -->
+                        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden" data-accordion="sec-activity">
+                            <button type="button" onclick="toggleSection('sec-activity')" class="w-full px-4 sm:px-5 py-4 flex justify-between items-center bg-slate-50/70 hover:bg-slate-100/80 transition text-left">
+                                <div class="flex items-center gap-3">
+                                    <span class="w-7 h-7 rounded-lg bg-blue-100 text-blue-900 font-bold text-xs flex items-center justify-center shrink-0">5</span>
+                                    <span class="font-bold text-slate-800 text-sm sm:text-base">Activity Hazards</span>
+                                </div>
+                                <div class="flex items-center gap-2.5">
+                                    <span id="badge-sec-activity" class="hidden px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-700 text-white">0</span>
+                                    <svg id="chev-sec-activity" class="w-5 h-5 text-slate-400 transition-transform duration-200" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+                                </div>
+                            </button>
+                            <div id="sec-activity" class="hidden px-4 sm:px-5 pb-5 pt-3 border-t border-slate-100">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-blue-50/50 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4 rounded text-blue-700 hazard-cb" value="28. Welding/Grinding"><span>Welding/Grinding</span></label>
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-blue-50/50 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4 rounded text-blue-700 hazard-cb" value="29. Burn/Heat Sources"><span>Burn/Heat Sources</span></label>
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-blue-50/50 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4 rounded text-blue-700 hazard-cb" value="30. Compressed Gases"><span>Compressed Gases</span></label>
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-blue-50/50 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4 rounded text-blue-700 hazard-cb" value="31. Hoisting/Lifting"><span>Hoisting/Lifting</span></label>
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-blue-50/50 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4 rounded text-blue-700 hazard-cb" value="32. Noise"><span>Noise</span></label>
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-blue-50/50 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4 rounded text-blue-700 hazard-cb" value="33. Dust"><span>Dust</span></label>
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-blue-50/50 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4 rounded text-blue-700 hazard-cb" value="34. Airborne Particles"><span>Airborne Particles</span></label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 6. Environmental Hazards -->
+                        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden" data-accordion="sec-env-hazards">
+                            <button type="button" onclick="toggleSection('sec-env-hazards')" class="w-full px-4 sm:px-5 py-4 flex justify-between items-center bg-slate-50/70 hover:bg-slate-100/80 transition text-left">
+                                <div class="flex items-center gap-3">
+                                    <span class="w-7 h-7 rounded-lg bg-blue-100 text-blue-900 font-bold text-xs flex items-center justify-center shrink-0">6</span>
+                                    <span class="font-bold text-slate-800 text-sm sm:text-base">Environmental Hazards</span>
+                                </div>
+                                <div class="flex items-center gap-2.5">
+                                    <span id="badge-sec-env-hazards" class="hidden px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-700 text-white">0</span>
+                                    <svg id="chev-sec-env-hazards" class="w-5 h-5 text-slate-400 transition-transform duration-200" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+                                </div>
+                            </button>
+                            <div id="sec-env-hazards" class="hidden px-4 sm:px-5 pb-5 pt-3 border-t border-slate-100">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-blue-50/50 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4 rounded text-blue-700 hazard-cb" value="35. Spill Potential"><span>Spill Potential</span></label>
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-blue-50/50 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4 rounded text-blue-700 hazard-cb" value="36. Weather Conditions"><span>Weather Conditions</span></label>
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-blue-50/50 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4 rounded text-blue-700 hazard-cb" value="37. MSDS Reviewed"><span>MSDS Reviewed</span></label>
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-blue-50/50 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4 rounded text-blue-700 hazard-cb" value="38. Ventilation"><span>Ventilation</span></label>
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-blue-50/50 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4 rounded text-blue-700 hazard-cb" value="39. Heat Stress/Cold Exposure"><span>Heat Stress/Cold Exposure</span></label>
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-blue-50/50 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4 rounded text-blue-700 hazard-cb" value="40. Other Workers in Area"><span>Other Workers in Area</span></label>
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-blue-50/50 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4 rounded text-blue-700 hazard-cb" value="41. Lighting Levels"><span>Lighting Levels</span></label>
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-blue-50/50 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4 rounded text-blue-700 hazard-cb" value="42. Housekeeping"><span>Housekeeping</span></label>
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-blue-50/50 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4 rounded text-blue-700 hazard-cb" value="43. Ground Conditions"><span>Ground Conditions</span></label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 7. Electrical Hazards -->
+                        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden" data-accordion="sec-electrical">
+                            <button type="button" onclick="toggleSection('sec-electrical')" class="w-full px-4 sm:px-5 py-4 flex justify-between items-center bg-slate-50/70 hover:bg-slate-100/80 transition text-left">
+                                <div class="flex items-center gap-3">
+                                    <span class="w-7 h-7 rounded-lg bg-blue-100 text-blue-900 font-bold text-xs flex items-center justify-center shrink-0">7</span>
+                                    <span class="font-bold text-slate-800 text-sm sm:text-base">Electrical Hazards</span>
+                                </div>
+                                <div class="flex items-center gap-2.5">
+                                    <span id="badge-sec-electrical" class="hidden px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-700 text-white">0</span>
+                                    <svg id="chev-sec-electrical" class="w-5 h-5 text-slate-400 transition-transform duration-200" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+                                </div>
+                            </button>
+                            <div id="sec-electrical" class="hidden px-4 sm:px-5 pb-5 pt-3 border-t border-slate-100">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-blue-50/50 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4 rounded text-blue-700 hazard-cb" value="44. ARC/Shock Hazard/GFI's"><span>ARC/Shock Hazard/GFI's</span></label>
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-blue-50/50 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4 rounded text-blue-700 hazard-cb" value="45. Working on/Near Energized Equipment"><span>Working on/Near Energized Equipment</span></label>
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-blue-50/50 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4 rounded text-blue-700 hazard-cb" value="46. Hot Work/Electrical Permit Required"><span>Hot Work/Electrical Permit Required</span></label>
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-blue-50/50 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4 rounded text-blue-700 hazard-cb" value="47. Electrical Cords Inspected"><span>Electrical Cords Inspected</span></label>
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-blue-50/50 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4 rounded text-blue-700 hazard-cb" value="48. Electrical Tools Inspected"><span>Electrical Tools Inspected</span></label>
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-blue-50/50 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4 rounded text-blue-700 hazard-cb" value="49. Explosive Hazard/Explosion Proof Plugs"><span>Explosive Hazard/Explosion Proof Plugs</span></label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 8. Other Hazards -->
+                        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden" data-accordion="sec-other">
+                            <button type="button" onclick="toggleSection('sec-other')" class="w-full px-4 sm:px-5 py-4 flex justify-between items-center bg-slate-50/70 hover:bg-slate-100/80 transition text-left">
+                                <div class="flex items-center gap-3">
+                                    <span class="w-7 h-7 rounded-lg bg-blue-100 text-blue-900 font-bold text-xs flex items-center justify-center shrink-0">8</span>
+                                    <span class="font-bold text-slate-800 text-sm sm:text-base">Other Hazards</span>
+                                </div>
+                                <div class="flex items-center gap-2.5">
+                                    <span id="badge-sec-other" class="hidden px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-700 text-white">0</span>
+                                    <svg id="chev-sec-other" class="w-5 h-5 text-slate-400 transition-transform duration-200" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+                                </div>
+                            </button>
+                            <div id="sec-other" class="hidden px-4 sm:px-5 pb-5 pt-3 border-t border-slate-100">
+                                <div id="other-hazards-list" class="space-y-2.5 mb-3"></div>
+                                <button type="button" onclick="addOtherHazardField()" class="inline-flex items-center gap-1.5 text-sm font-bold text-blue-700 hover:text-blue-900 px-3 py-2 rounded-xl hover:bg-blue-50 transition">
+                                    <span class="text-lg leading-none">+</span> Add Custom Hazard
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 9. PPE Required -->
+                        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden" data-accordion="sec-ppe">
+                            <button type="button" onclick="toggleSection('sec-ppe')" class="w-full px-4 sm:px-5 py-4 flex justify-between items-center bg-slate-50/70 hover:bg-slate-100/80 transition text-left">
+                                <div class="flex items-center gap-3">
+                                    <span class="w-7 h-7 rounded-lg bg-amber-100 text-amber-900 font-bold text-xs flex items-center justify-center shrink-0">9</span>
+                                    <span class="font-bold text-slate-800 text-sm sm:text-base">PPE Required</span>
+                                </div>
+                                <div class="flex items-center gap-2.5">
+                                    <span id="badge-sec-ppe" class="hidden px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-600 text-white">0</span>
+                                    <svg id="chev-sec-ppe" class="w-5 h-5 text-slate-400 transition-transform duration-200" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+                                </div>
+                            </button>
+                            <div id="sec-ppe" class="hidden px-4 sm:px-5 pb-5 pt-3 border-t border-slate-100">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5 mb-4">
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-amber-50/50 cursor-pointer text-sm"><input type="checkbox" name="ppe" class="w-4 h-4 rounded text-blue-700 hazard-cb" value="Safety Glasses"><span>Safety Glasses</span></label>
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-amber-50/50 cursor-pointer text-sm"><input type="checkbox" name="ppe" class="w-4 h-4 rounded text-blue-700 hazard-cb" value="Hard Hat"><span>Hard Hat</span></label>
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-amber-50/50 cursor-pointer text-sm"><input type="checkbox" name="ppe" class="w-4 h-4 rounded text-blue-700 hazard-cb" value="Steel Toed Boots"><span>Steel Toed Boots</span></label>
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-amber-50/50 cursor-pointer text-sm"><input type="checkbox" name="ppe" class="w-4 h-4 rounded text-blue-700 hazard-cb" value="Gloves"><span>Gloves</span></label>
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-amber-50/50 cursor-pointer text-sm"><input type="checkbox" name="ppe" class="w-4 h-4 rounded text-blue-700 hazard-cb" value="Hearing Protection"><span>Hearing Protection</span></label>
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-amber-50/50 cursor-pointer text-sm"><input type="checkbox" name="ppe" class="w-4 h-4 rounded text-blue-700 hazard-cb" value="FR Clothing"><span>FR Clothing</span></label>
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-amber-50/50 cursor-pointer text-sm"><input type="checkbox" name="ppe" class="w-4 h-4 rounded text-blue-700 hazard-cb" value="Respirator"><span>Respirator</span></label>
+                                    <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-amber-50/50 cursor-pointer text-sm"><input type="checkbox" name="ppe" class="w-4 h-4 rounded text-blue-700 hazard-cb" value="Fall Harness"><span>Fall Harness</span></label>
+                                </div>
+                                <div id="other-ppe-list" class="space-y-2.5 pt-3 border-t border-slate-100 mb-3"></div>
+                                <button type="button" onclick="addPPEField()" class="inline-flex items-center gap-1.5 text-sm font-bold text-blue-700 hover:text-blue-900 px-3 py-2 rounded-xl hover:bg-blue-50 transition">
+                                    <span class="text-lg leading-none">+</span> Add Additional PPE
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 10. Tools, Equipment & PPE Inspection -->
+                        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden" data-accordion="sec-tools">
+                            <button type="button" onclick="toggleSection('sec-tools')" class="w-full px-4 sm:px-5 py-4 flex justify-between items-center bg-slate-50/70 hover:bg-slate-100/80 transition text-left">
+                                <div class="flex items-center gap-3">
+                                    <span class="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-900 font-bold text-xs flex items-center justify-center shrink-0">10</span>
+                                    <span class="font-bold text-slate-800 text-sm sm:text-base">Tools, Equipment &amp; PPE Inspection</span>
+                                </div>
+                                <div class="flex items-center gap-2.5">
+                                    <span id="badge-sec-tools" class="hidden px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-700 text-white">0/3</span>
+                                    <svg id="chev-sec-tools" class="w-5 h-5 text-slate-400 transition-transform duration-200" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+                                </div>
+                            </button>
+                            <div id="sec-tools" class="hidden px-4 sm:px-5 pb-5 pt-4 border-t border-slate-100 space-y-4">
+                                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-xl bg-slate-50 border border-slate-200">
+                                    <span class="font-medium text-slate-700 text-sm">Are tools inspected prior to use and in good order?</span>
+                                    <div class="flex items-center gap-4 shrink-0">
+                                        <label class="flex items-center gap-2 cursor-pointer text-sm font-semibold"><input type="radio" name="tools_inspected" value="Yes" class="w-4 h-4 text-blue-700 inspection-radio"><span>Yes</span></label>
+                                        <label class="flex items-center gap-2 cursor-pointer text-sm font-semibold"><input type="radio" name="tools_inspected" value="No" class="w-4 h-4 text-blue-700 inspection-radio"><span>No</span></label>
+                                    </div>
+                                </div>
+                                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-xl bg-slate-50 border border-slate-200">
+                                    <span class="font-medium text-slate-700 text-sm">Has equipment been inspected prior to use and in good order?</span>
+                                    <div class="flex items-center gap-4 shrink-0">
+                                        <label class="flex items-center gap-2 cursor-pointer text-sm font-semibold"><input type="radio" name="equipment_inspected" value="Yes" class="w-4 h-4 text-blue-700 inspection-radio"><span>Yes</span></label>
+                                        <label class="flex items-center gap-2 cursor-pointer text-sm font-semibold"><input type="radio" name="equipment_inspected" value="No" class="w-4 h-4 text-blue-700 inspection-radio"><span>No</span></label>
+                                    </div>
+                                </div>
+                                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-xl bg-slate-50 border border-slate-200">
+                                    <span class="font-medium text-slate-700 text-sm">Has all PPE been inspected prior to each use and in good order?</span>
+                                    <div class="flex items-center gap-4 shrink-0">
+                                        <label class="flex items-center gap-2 cursor-pointer text-sm font-semibold"><input type="radio" name="ppe_inspected" value="Yes" class="w-4 h-4 text-blue-700 inspection-radio"><span>Yes</span></label>
+                                        <label class="flex items-center gap-2 cursor-pointer text-sm font-semibold"><input type="radio" name="ppe_inspected" value="No" class="w-4 h-4 text-blue-700 inspection-radio"><span>No</span></label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </section>
+
+                <!-- Dynamic Risk Assessment Matrix -->
+                <section class="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <div class="border-b border-slate-100 pb-3 mb-4">
+                        <h2 class="text-lg font-bold text-slate-900">Risk Assessment Matrix</h2>
+                        <p class="text-xs sm:text-sm text-slate-500 mt-0.5">Identify tasks and hazards, calculate risk rank (Severity &times; Probability), and document controls.</p>
+                    </div>
+
+                    <div id="risk-rows-container" class="space-y-4"></div>
+
+                    <button type="button" onclick="addRiskRow()"
+                        class="mt-4 w-full py-3.5 bg-blue-50 hover:bg-blue-100 text-blue-900 font-bold rounded-xl border border-blue-200 flex justify-center items-center gap-2 transition text-sm">
+                        <span class="text-lg leading-none">+</span> Add Hazard Row
+                    </button>
+
+                    <!-- 3x3 Risk Matrix Reference Table -->
+                    <div class="mt-8 border-t border-slate-200 pt-6">
+                        <h3 class="text-xs font-bold text-slate-500 mb-3 text-center uppercase tracking-wider">Risk Assessment Matrix Reference</h3>
+                        <div class="overflow-x-auto rounded-xl border border-slate-300 shadow-xs">
+                            <table class="w-full min-w-[420px] text-center text-xs sm:text-sm border-collapse bg-white">
+                                <thead>
+                                    <tr>
+                                        <th class="p-3 bg-slate-100 border-b border-r border-slate-300 text-slate-600 font-bold">Probability <br><span class="text-[11px] font-normal">vs Severity</span></th>
+                                        <th class="p-3 bg-slate-50 border-b border-slate-200 font-semibold text-slate-700">Low Severity (1)<br><span class="text-[11px] font-normal text-slate-500">Minor</span></th>
+                                        <th class="p-3 bg-slate-50 border-b border-slate-200 font-semibold text-slate-700">Medium Severity (2)<br><span class="text-[11px] font-normal text-slate-500">Serious</span></th>
+                                        <th class="p-3 bg-slate-50 border-b border-slate-200 font-semibold text-slate-700">High Severity (3)<br><span class="text-[11px] font-normal text-slate-500">Imminent</span></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <th class="p-3 bg-slate-50 border-r border-b border-slate-200 font-semibold text-left text-slate-700">Low Probability (1)<br><span class="text-[11px] font-normal text-slate-500">Remote</span></th>
+                                        <td class="p-3 border border-slate-200 bg-emerald-100 text-emerald-900 font-bold">1 (Very Low Risk)</td>
+                                        <td class="p-3 border border-slate-200 bg-yellow-200 text-yellow-900 font-bold">2 (Low Risk)</td>
+                                        <td class="p-3 border border-slate-200 bg-orange-200 text-orange-900 font-bold">3 (Medium Risk)</td>
+                                    </tr>
+                                    <tr>
+                                        <th class="p-3 bg-slate-50 border-r border-b border-slate-200 font-semibold text-left text-slate-700">Medium Probability (2)<br><span class="text-[11px] font-normal text-slate-500">Reasonable</span></th>
+                                        <td class="p-3 border border-slate-200 bg-yellow-200 text-yellow-900 font-bold">2 (Low Risk)</td>
+                                        <td class="p-3 border border-slate-200 bg-orange-500 text-white font-bold">4 (High Risk)</td>
+                                        <td class="p-3 border border-slate-200 bg-orange-500 text-white font-bold">6 (High Risk)</td>
+                                    </tr>
+                                    <tr>
+                                        <th class="p-3 bg-slate-50 border-r border-slate-200 font-semibold text-left text-slate-700">High Probability (3)<br><span class="text-[11px] font-normal text-slate-500">Probable</span></th>
+                                        <td class="p-3 border border-slate-200 bg-orange-200 text-orange-900 font-bold">3 (Medium Risk)</td>
+                                        <td class="p-3 border border-slate-200 bg-orange-500 text-white font-bold">6 (High Risk)</td>
+                                        <td class="p-3 border border-slate-200 bg-red-700 text-white font-bold">9 (Immediately Dangerous)</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Job Completion -->
+                <section class="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <h2 class="text-lg font-bold text-slate-900 border-b border-slate-100 pb-3 mb-4">Job Completion</h2>
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200">
+                            <span class="text-sm font-medium text-slate-700">Area cleaned up?</span>
+                            <div class="flex items-center gap-4">
+                                <label class="flex items-center gap-2 cursor-pointer text-sm font-semibold"><input type="radio" name="cleanup" value="Yes" class="w-4 h-4 text-blue-700"><span>Yes</span></label>
+                                <label class="flex items-center gap-2 cursor-pointer text-sm font-semibold"><input type="radio" name="cleanup" value="No" class="w-4 h-4 text-blue-700"><span>No</span></label>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200">
+                            <span class="text-sm font-medium text-slate-700">All tools removed?</span>
+                            <div class="flex items-center gap-4">
+                                <label class="flex items-center gap-2 cursor-pointer text-sm font-semibold"><input type="radio" name="tools" value="Yes" class="w-4 h-4 text-blue-700"><span>Yes</span></label>
+                                <label class="flex items-center gap-2 cursor-pointer text-sm font-semibold"><input type="radio" name="tools" value="No" class="w-4 h-4 text-blue-700"><span>No</span></label>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200">
+                            <span class="text-sm font-medium text-slate-700">Incidents / Injuries?</span>
+                            <div class="flex items-center gap-4">
+                                <label class="flex items-center gap-2 cursor-pointer text-sm font-semibold"><input type="radio" name="incidents" value="Yes" class="w-4 h-4 text-blue-700"><span>Yes</span></label>
+                                <label class="flex items-center gap-2 cursor-pointer text-sm font-semibold"><input type="radio" name="incidents" value="No" class="w-4 h-4 text-blue-700"><span>No</span></label>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Signatures Section -->
+                <section class="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-200 space-y-6">
+                    <h2 class="text-lg font-bold text-slate-900 border-b border-slate-100 pb-3">Signatures</h2>
+
+                    <!-- Worker Signatures -->
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wide mb-3">Worker Signatures</h3>
+                        <div id="worker-signatures-container" class="space-y-4"></div>
+                        <button type="button" onclick="addWorkerSignature()"
+                            class="mt-3 inline-flex items-center gap-1.5 text-sm font-bold text-blue-700 hover:text-blue-900 px-3 py-2 rounded-xl hover:bg-blue-50 transition">
+                            <span class="text-lg leading-none">+</span> Add Another Worker
+                        </button>
+                    </div>
+
+                    <!-- Supervisor Signature -->
+                    <div class="pt-5 border-t border-slate-200">
+                        <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wide mb-3">Supervisor Signature</h3>
+                        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Supervisor Name</label>
+                            <input type="text" id="supervisor-name-sig" placeholder="Enter Supervisor Name"
+                                class="w-full px-3.5 py-2.5 mb-3 rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-blue-600 outline-none text-sm">
+
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Signature</label>
+                            <canvas id="sig-supervisor" class="w-full h-36 bg-white border-2 border-dashed border-slate-300 rounded-xl touch-none cursor-crosshair"></canvas>
+
+                            <div class="flex flex-wrap justify-between items-center gap-2 mt-3">
+                                <button type="button" onclick="clearPad('sig-supervisor')" class="text-xs font-semibold text-red-600 hover:text-red-800 px-2 py-1 rounded hover:bg-red-50 transition">Clear Pad</button>
+                                <button type="button" onclick="submitSignature('ts-supervisor')" class="bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold px-3.5 py-2 rounded-lg shadow-xs transition">Stamp Signature</button>
+                            </div>
+                            <div id="ts-supervisor" class="text-xs text-slate-500 mt-2 font-mono text-right min-h-[1rem]"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Action Buttons -->
+                <div class="space-y-3 pt-2">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <button type="button" id="btn-save-draft" onclick="saveDraft(this)"
+                            class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 py-3.5 px-5 rounded-xl font-bold shadow-md transition flex items-center justify-center gap-2 text-sm">
+                            Save Draft
+                        </button>
+                        <button type="button" id="btn-submit-form" onclick="submitForm(this)"
+                            class="w-full bg-emerald-700 hover:bg-emerald-800 text-white py-3.5 px-5 rounded-xl font-bold shadow-md transition flex items-center justify-center gap-2 text-sm">
+                            Submit Document
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <button type="button" onclick="generatePDF()"
+                            class="w-full bg-slate-800 hover:bg-slate-900 text-white py-3 px-5 rounded-xl font-bold shadow-sm transition flex items-center justify-center gap-2 text-sm">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+                            Download PDF
+                        </button>
+                        <a id="email-link" href="#"
+                            class="w-full bg-white hover:bg-slate-50 text-slate-800 py-3 px-5 rounded-xl font-bold border border-slate-300 shadow-xs transition flex items-center justify-center gap-2 text-sm">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"/></svg>
+                            Draft Email
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============================================================= -->
+            <!-- VIEW 2: HISTORY / SAVED FORMS                                 -->
+            <!-- ============================================================= -->
+            <div id="view-history" class="hidden space-y-4">
+                <section class="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4 mb-4">
+                        <div>
+                            <h2 class="text-lg font-bold text-slate-900">Saved FLHA Forms</h2>
+                            <p class="text-xs text-slate-500">View, edit, or manage your saved assessments.</p>
+                        </div>
+                        <button type="button" onclick="switchView('flha_new')" class="px-4 py-2 bg-blue-800 hover:bg-blue-900 text-white rounded-xl text-xs font-bold shadow-xs transition self-start sm:self-auto">
+                            + New FLHA
+                        </button>
+                    </div>
+
+                    <!-- Search & Filter -->
+                    <div class="flex flex-col sm:flex-row gap-2.5 mb-4">
+                        <input type="text" id="history-search" oninput="renderHistoryList()" placeholder="Search by project name or number..."
+                            class="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-300 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600 outline-none text-sm">
+                        <select id="history-filter" onchange="renderHistoryList()"
+                            class="px-3.5 py-2.5 rounded-xl border border-slate-300 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600 outline-none text-sm font-medium">
+                            <option value="all">All Statuses</option>
+                            <option value="draft">Drafts Only</option>
+                            <option value="completed">Completed Only</option>
+                        </select>
+                    </div>
+
+                    <div id="history-loading" class="text-center text-slate-500 py-8 text-sm font-medium">Loading saved forms...</div>
+                    <div id="history-list" class="space-y-3"></div>
+                </section>
+            </div>
+
+            <!-- ============================================================= -->
+            <!-- VIEW 3: COMPANY PROFILE                                       -->
+            <!-- ============================================================= -->
+            <div id="view-profile" class="hidden">
+                <section class="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <div class="border-b border-slate-100 pb-3 mb-5">
+                        <h2 class="text-lg font-bold text-slate-900">Company Profile</h2>
+                        <p class="text-xs text-slate-500 mt-0.5">Saved to your account and automatically pre-filled on new FLHA forms.</p>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Company Name</label>
+                            <input type="text" id="profile-company" placeholder="Enter company name"
+                                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600 outline-none text-sm">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Company Address</label>
+                            <textarea id="profile-address" rows="3" placeholder="Enter company address"
+                                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600 outline-none text-sm"></textarea>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Contact Email</label>
+                                <input type="email" id="profile-email" placeholder="safety@company.com"
+                                    class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600 outline-none text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Phone Number</label>
+                                <input type="tel" id="profile-phone" placeholder="(555) 123-4567"
+                                    class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600 outline-none text-sm">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Safety Manager Name</label>
+                            <input type="text" id="profile-manager" placeholder="Safety Manager"
+                                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600 outline-none text-sm">
+                        </div>
+
+                        <div class="pt-4 border-t border-slate-100">
+                            <button type="button" id="btn-save-profile" onclick="saveProfile(this)"
+                                class="w-full bg-blue-900 hover:bg-blue-950 text-white py-3.5 rounded-xl font-bold shadow-md transition text-sm">
+                                Save Company Profile
+                            </button>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- APPLICATION LOGIC (FIREBASE + UI + PDF)                               -->
+    <!-- ===================================================================== -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import {
+            getAuth,
+            createUserWithEmailAndPassword,
+            signInWithEmailAndPassword,
+            signInWithPopup,
+            GoogleAuthProvider,
+            signInAnonymously,
+            signInWithCustomToken,
+            signOut,
+            onAuthStateChanged,
+            sendPasswordResetEmail
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import {
+            getFirestore,
+            collection,
+            addDoc,
+            getDocs,
+            doc,
+            getDoc,
+            setDoc,
+            updateDoc,
+            deleteDoc
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // =====================================================================
+        // 1. FIREBASE INITIALIZATION
+        // =====================================================================
+        const fallbackFirebaseConfig = {
+            apiKey: "AIzaSyAqcBCU25Y9aoKIRnBaDhKjrncWHjMhHCA",
+            authDomain: "testbox-de6de.firebaseapp.com",
+            databaseURL: "https://testbox-de6de-default-rtdb.firebaseio.com",
+            projectId: "testbox-de6de",
+            storageBucket: "testbox-de6de.firebasestorage.app",
+            messagingSenderId: "776540153073",
+            appId: "1:776540153073:web:89d3eff87d022e45e53550"
+        };
+
+        const firebaseConfig = (typeof __firebase_config !== 'undefined' && __firebase_config)
+            ? JSON.parse(__firebase_config)
+            : fallbackFirebaseConfig;
+
+        const appId = (typeof __app_id !== 'undefined' && __app_id)
+            ? __app_id
+            : 'flha-app-v1';
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const googleProvider = new GoogleAuthProvider();
+
+        // Application State
+        let currentUser = null;
+        let cachedProfile = null;
+        let cachedHistoryDocs = [];
+        const pads = {}; // SignaturePad instances mapped by canvas ID
+
+        // =====================================================================
+        // 2. TOAST & CUSTOM MODAL HELPERS (No native alert/confirm)
+        // =====================================================================
+        let toastTimer = null;
+        window.showToast = function(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const msgEl = document.getElementById('toast-message');
+            const iconEl = document.getElementById('toast-icon');
+
+            msgEl.textContent = message;
+            toast.classList.remove('hidden', 'bg-emerald-700', 'bg-red-700', 'bg-slate-800');
+
+            if (type === 'error') {
+                toast.classList.add('bg-red-700');
+                iconEl.textContent = '⚠';
+            } else if (type === 'info') {
+                toast.classList.add('bg-slate-800');
+                iconEl.textContent = 'ℹ';
+            } else {
+                toast.classList.add('bg-emerald-700');
+                iconEl.textContent = '✓';
+            }
+
+            if (toastTimer) clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 3500);
+        };
+
+        function showConfirmModal({ title, message, confirmText = 'Confirm', confirmStyle = 'primary', onConfirm }) {
+            const modal = document.getElementById('confirm-modal');
+            const titleEl = document.getElementById('modal-title');
+            const msgEl = document.getElementById('modal-message');
+            const confirmBtn = document.getElementById('modal-confirm-btn');
+            const cancelBtn = document.getElementById('modal-cancel-btn');
+            const iconWrap = document.getElementById('modal-icon-wrap');
+
+            titleEl.textContent = title;
+            msgEl.textContent = message;
+            confirmBtn.textContent = confirmText;
+
+            confirmBtn.className = 'px-5 py-2.5 rounded-xl text-sm font-semibold text-white shadow-sm transition ';
+            iconWrap.className = 'w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ';
+
+            if (confirmStyle === 'danger') {
+                confirmBtn.className += 'bg-red-600 hover:bg-red-700';
+                iconWrap.className += 'bg-red-100 text-red-700';
+            } else if (confirmStyle === 'success') {
+                confirmBtn.className += 'bg-emerald-700 hover:bg-emerald-800';
+                iconWrap.className += 'bg-emerald-100 text-emerald-700';
+            } else {
+                confirmBtn.className += 'bg-blue-700 hover:bg-blue-800';
+                iconWrap.className += 'bg-blue-100 text-blue-700';
+            }
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+
+            const closeModal = () => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+                confirmBtn.onclick = null;
+                cancelBtn.onclick = null;
+            };
+
+            cancelBtn.onclick = closeModal;
+            confirmBtn.onclick = () => {
+                closeModal();
+                if (typeof onConfirm === 'function') onConfirm();
+            };
+        }
+
+        // =====================================================================
+        // 3. AUTHENTICATION FLOW
+        // =====================================================================
+        const authContainer = document.getElementById('auth-container');
+        const appContent = document.getElementById('app-content');
+        const emailInput = document.getElementById('auth-email');
+        const passInput = document.getElementById('auth-password');
+        const authError = document.getElementById('auth-error');
+        const authInfo = document.getElementById('auth-info');
+
+        function setAuthFeedback(message, isError = true) {
+            authError.classList.add('hidden');
+            authInfo.classList.add('hidden');
+            if (!message) return;
+            const target = isError ? authError : authInfo;
+            target.textContent = message.replace('Firebase: ', '');
+            target.classList.remove('hidden');
+        }
+
+        // Auto-authenticate with custom token if provided by environment
+        async function initEnvironmentAuth() {
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                try {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } catch (err) {
+                    console.warn('Custom token auth fallback:', err.message);
+                }
+            }
+        }
+        initEnvironmentAuth();
+
+        onAuthStateChanged(auth, async (user) => {
+            currentUser = user;
+            if (user) {
+                authContainer.classList.add('hidden');
+                appContent.classList.remove('hidden');
+
+                const sidebarEmail = document.getElementById('sidebar-user-email');
+                sidebarEmail.textContent = user.email || (user.isAnonymous ? 'Personal Guest Mode' : 'Signed In');
+
+                // Initialize default rows if form is empty
+                if (document.getElementById('risk-rows-container').children.length === 0) {
+                    addRiskRow();
+                }
+                if (document.getElementById('other-hazards-list').children.length === 0) {
+                    addOtherHazardField();
+                }
+                if (document.getElementById('other-ppe-list').children.length === 0) {
+                    addPPEField();
+                }
+                if (document.getElementById('worker-signatures-container').children.length === 0) {
+                    addWorkerSignature();
+                }
+
+                // Initialize Signature Pads after view becomes visible
+                requestAnimationFrame(() => {
+                    setTimeout(() => {
+                        initPad('sig-supervisor');
+                        resizeAllPads();
+                    }, 150);
+                });
+
+                // Load Company Profile from Firestore & pre-fill new form
+                await loadCompanyProfile(true);
+                updateAllBadges();
+            } else {
+                appContent.classList.add('hidden');
+                authContainer.classList.remove('hidden');
+                closeSidebar();
+            }
+        });
+
+        document.getElementById('btn-signin').addEventListener('click', async () => {
+            setAuthFeedback('');
+            const email = emailInput.value.trim();
+            const pass = passInput.value;
+            if (!email || !pass) {
+                setAuthFeedback('Please enter both your email address and password.');
+                return;
+            }
+            try {
+                await signInWithEmailAndPassword(auth, email, pass);
+            } catch (err) {
+                setAuthFeedback(err.message);
+            }
+        });
+
+        document.getElementById('btn-signup').addEventListener('click', async () => {
+            setAuthFeedback('');
+            const email = emailInput.value.trim();
+            const pass = passInput.value;
+            if (!email || pass.length < 6) {
+                setAuthFeedback('Please enter a valid email and a password of at least 6 characters.');
+                return;
+            }
+            try {
+                await createUserWithEmailAndPassword(auth, email, pass);
+                showToast('Account created successfully!');
+            } catch (err) {
+                setAuthFeedback(err.message);
+            }
+        });
+
+        document.getElementById('btn-reset').addEventListener('click', async () => {
+            setAuthFeedback('');
+            const email = emailInput.value.trim();
+            if (!email) {
+                setAuthFeedback('Enter your email address above first to reset your password.');
+                return;
+            }
+            try {
+                await sendPasswordResetEmail(auth, email);
+                setAuthFeedback('Password reset email sent! Check your inbox.', false);
+            } catch (err) {
+                setAuthFeedback(err.message);
+            }
+        });
+
+        document.getElementById('btn-google').addEventListener('click', async () => {
+            setAuthFeedback('');
+            try {
+                await signInWithPopup(auth, googleProvider);
+            } catch (err) {
+                setAuthFeedback(err.message);
+            }
+        });
+
+        document.getElementById('btn-guest').addEventListener('click', async () => {
+            setAuthFeedback('');
+            try {
+                await signInAnonymously(auth);
+                showToast('Signed in with Quick Access.');
+            } catch (err) {
+                setAuthFeedback(err.message);
+            }
+        });
+
+        document.getElementById('btn-signout-sidebar').addEventListener('click', async () => {
+            try {
+                await signOut(auth);
+                showToast('Signed out successfully.', 'info');
+            } catch (err) {
+                showToast('Sign out error: ' + err.message, 'error');
+            }
+        });
+
+        // =====================================================================
+        // 4. LIVE CLOCK & NAVIGATION
+        // =====================================================================
+        function updateClock() {
+            const now = new Date();
+            const dateEl = document.getElementById('current-date');
+            const timeEl = document.getElementById('current-time');
+            if (dateEl) dateEl.textContent = now.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+            if (timeEl) timeEl.textContent = now.toLocaleTimeString();
+        }
+        updateClock();
+        setInterval(updateClock, 1000);
+
+        function closeSidebar() {
+            document.getElementById('sidebar').classList.add('-translate-x-full');
+            document.getElementById('sidebar-overlay').classList.add('hidden');
+        }
+
+        window.toggleSidebar = function() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            const isClosed = sidebar.classList.contains('-translate-x-full');
+            if (isClosed) {
+                sidebar.classList.remove('-translate-x-full');
+                overlay.classList.remove('hidden');
+            } else {
+                closeSidebar();
+            }
+        };
+
+        function highlightNav(activeId) {
+            document.querySelectorAll('.nav-item').forEach(btn => {
+                btn.classList.remove('text-blue-800', 'bg-blue-50');
+                btn.classList.add('text-slate-700');
+            });
+            const active = document.getElementById(activeId);
+            if (active) {
+                active.classList.remove('text-slate-700');
+                active.classList.add('text-blue-800', 'bg-blue-50');
+            }
+        }
+
+        window.switchView = function(viewName) {
+            closeSidebar();
+
+            const flha = document.getElementById('view-flha');
+            const profile = document.getElementById('view-profile');
+            const history = document.getElementById('view-history');
+
+            flha.classList.add('hidden');
+            profile.classList.add('hidden');
+            history.classList.add('hidden');
+
+            if (viewName === 'flha') {
+                flha.classList.remove('hidden');
+                highlightNav('nav-flha');
+                requestAnimationFrame(() => setTimeout(resizeAllPads, 80));
+            } else if (viewName === 'flha_new') {
+                flha.classList.remove('hidden');
+                highlightNav('nav-flha');
+                resetForm(true);
+            } else if (viewName === 'profile') {
+                profile.classList.remove('hidden');
+                highlightNav('nav-profile');
+                loadCompanyProfile(false);
+            } else if (viewName === 'history') {
+                history.classList.remove('hidden');
+                highlightNav('nav-history');
+                loadHistory();
+            }
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        };
+
+        window.startNewFormPrompt = function() {
+            showConfirmModal({
+                title: 'Start New FLHA Form?',
+                message: 'Any unsaved changes on the current form will be cleared.',
+                confirmText: 'Start New Form',
+                confirmStyle: 'primary',
+                onConfirm: () => {
+                    resetForm(true);
+                    showToast('Started a fresh FLHA form.', 'info');
+                }
+            });
+        };
+
+        // =====================================================================
+        // 5. ACCORDIONS & REAL-TIME BADGE COUNTS
+        // =====================================================================
+        window.toggleSection = function(id) {
+            const content = document.getElementById(id);
+            const chev = document.getElementById('chev-' + id);
+            if (!content) return;
+            const isHidden = content.classList.contains('hidden');
+            if (isHidden) {
+                content.classList.remove('hidden');
+                if (chev) chev.classList.add('rotate-180');
+            } else {
+                content.classList.add('hidden');
+                if (chev) chev.classList.remove('rotate-180');
+            }
+        };
+
+        let allExpanded = false;
+        window.toggleAllAccordions = function() {
+            allExpanded = !allExpanded;
+            document.querySelectorAll('[data-accordion]').forEach(card => {
+                const id = card.getAttribute('data-accordion');
+                const content = document.getElementById(id);
+                const chev = document.getElementById('chev-' + id);
+                if (allExpanded) {
+                    content.classList.remove('hidden');
+                    if (chev) chev.classList.add('rotate-180');
+                } else {
+                    content.classList.add('hidden');
+                    if (chev) chev.classList.remove('rotate-180');
+                }
+            });
+            document.getElementById('btn-toggle-all').textContent = allExpanded ? 'Collapse All' : 'Expand All';
+        };
+
+        function updateAllBadges() {
+            const stdSections = ['sec-ergo', 'sec-heights', 'sec-access', 'sec-personal', 'sec-activity', 'sec-env-hazards', 'sec-electrical'];
+            stdSections.forEach(secId => {
+                const count = document.querySelectorAll(`#${secId} input[type="checkbox"]:checked`).length;
+                const badge = document.getElementById('badge-' + secId);
+                if (badge) {
+                    badge.textContent = count;
+                    badge.classList.toggle('hidden', count === 0);
+                }
+            });
+
+            // 8. Other Hazards badge
+            let otherCount = 0;
+            document.querySelectorAll('#other-hazards-list .other-hazard-row').forEach(row => {
+                const cb = row.querySelector('.custom-hazard-cb');
+                const txt = row.querySelector('.custom-hazard-input').value.trim();
+                if (cb && cb.checked && txt) otherCount++;
+            });
+            const otherBadge = document.getElementById('badge-sec-other');
+            if (otherBadge) {
+                otherBadge.textContent = otherCount;
+                otherBadge.classList.toggle('hidden', otherCount === 0);
+            }
+
+            // 9. PPE badge (standard + custom)
+            let ppeCount = document.querySelectorAll('#sec-ppe input[name="ppe"]:checked').length;
+            document.querySelectorAll('#other-ppe-list .other-ppe-row').forEach(row => {
+                const cb = row.querySelector('.custom-ppe-cb');
+                const txt = row.querySelector('.custom-ppe-input').value.trim();
+                if (cb && cb.checked && txt) ppeCount++;
+            });
+            const ppeBadge = document.getElementById('badge-sec-ppe');
+            if (ppeBadge) {
+                ppeBadge.textContent = ppeCount;
+                ppeBadge.classList.toggle('hidden', ppeCount === 0);
+            }
+
+            // 10. Tools/Equipment/PPE Inspection badge
+            let inspCount = 0;
+            if (document.querySelector('input[name="tools_inspected"]:checked')) inspCount++;
+            if (document.querySelector('input[name="equipment_inspected"]:checked')) inspCount++;
+            if (document.querySelector('input[name="ppe_inspected"]:checked')) inspCount++;
+            const inspBadge = document.getElementById('badge-sec-tools');
+            if (inspBadge) {
+                inspBadge.textContent = `${inspCount}/3`;
+                inspBadge.classList.toggle('hidden', inspCount === 0);
+            }
+        }
+
+        // Listen for changes inside the hazard form to update badges live
+        document.getElementById('hazard-form').addEventListener('change', updateAllBadges);
+        document.getElementById('hazard-form').addEventListener('input', updateAllBadges);
+
+        // =====================================================================
+        // 6. DYNAMIC FORM ROWS (OTHER HAZARDS, PPE, RISK MATRIX, SIGNATURES)
+        // =====================================================================
+        window.addOtherHazardField = function(initialValue = '', checked = true) {
+            const container = document.getElementById('other-hazards-list');
+            const id = 'other-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+            const row = document.createElement('div');
+            row.id = id;
+            row.className = 'flex items-center gap-2.5 other-hazard-row';
+            row.innerHTML = `
+                <input type="checkbox" ${checked ? 'checked' : ''} class="w-4 h-4 rounded text-blue-700 custom-hazard-cb shrink-0">
+                <input type="text" placeholder="Enter custom hazard description..." class="flex-1 px-3 py-2 rounded-xl border border-slate-300 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600 outline-none text-sm custom-hazard-input">
+                <button type="button" onclick="removeDynamicEl('${id}')" class="w-8 h-8 rounded-lg text-red-500 hover:bg-red-50 font-bold text-lg flex items-center justify-center shrink-0">&times;</button>
+            `;
+            row.querySelector('.custom-hazard-input').value = initialValue;
+            container.appendChild(row);
+            updateAllBadges();
+        };
+
+        window.addPPEField = function(initialValue = '', checked = true) {
+            const container = document.getElementById('other-ppe-list');
+            const id = 'ppe-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+            const row = document.createElement('div');
+            row.id = id;
+            row.className = 'flex items-center gap-2.5 other-ppe-row';
+            row.innerHTML = `
+                <input type="checkbox" ${checked ? 'checked' : ''} class="w-4 h-4 rounded text-blue-700 custom-ppe-cb shrink-0">
+                <input type="text" placeholder="Enter additional PPE item..." class="flex-1 px-3 py-2 rounded-xl border border-slate-300 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600 outline-none text-sm custom-ppe-input">
+                <button type="button" onclick="removeDynamicEl('${id}')" class="w-8 h-8 rounded-lg text-red-500 hover:bg-red-50 font-bold text-lg flex items-center justify-center shrink-0">&times;</button>
+            `;
+            row.querySelector('.custom-ppe-input').value = initialValue;
+            container.appendChild(row);
+            updateAllBadges();
+        };
+
+        window.removeDynamicEl = function(id) {
+            const el = document.getElementById(id);
+            if (el) el.remove();
+            updateAllBadges();
+        };
+
+        window.addRiskRow = function(data = null) {
+            const container = document.getElementById('risk-rows-container');
+            const rowId = 'risk-row-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+
+            const div = document.createElement('div');
+            div.id = rowId;
+            div.className = 'bg-slate-50 p-4 rounded-xl border border-slate-200 relative risk-row space-y-3';
+            div.innerHTML = `
+                <button type="button" onclick="removeRow('${rowId}')" title="Remove Row"
+                    class="absolute top-3 right-3 w-7 h-7 rounded-lg text-red-500 hover:bg-red-100 font-bold text-lg flex items-center justify-center transition">&times;</button>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pr-7">
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Task</label>
+                        <input type="text" class="w-full px-3 py-2 border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-blue-600 outline-none text-sm task-input" placeholder="e.g., Climbing extension ladder">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Hazard</label>
+                        <input type="text" class="w-full px-3 py-2 border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-blue-600 outline-none text-sm hazard-input" placeholder="e.g., Fall from height / ladder slip">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-3 gap-2.5">
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Severity</label>
+                        <select class="w-full px-2.5 py-2 border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-blue-600 outline-none text-xs sm:text-sm sev-select" onchange="calcRisk('${rowId}')">
+                            <option value="0">-</option>
+                            <option value="1">Low (1)</option>
+                            <option value="2">Medium (2)</option>
+                            <option value="3">High (3)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Probability</label>
+                        <select class="w-full px-2.5 py-2 border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-blue-600 outline-none text-xs sm:text-sm prob-select" onchange="calcRisk('${rowId}')">
+                            <option value="0">-</option>
+                            <option value="1">Low (1)</option>
+                            <option value="2">Medium (2)</option>
+                            <option value="3">High (3)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Risk Rank</label>
+                        <input type="text" class="w-full px-2.5 py-2 border border-slate-300 rounded-xl bg-slate-200 text-center font-extrabold text-xs sm:text-sm rank-output" readonly placeholder="-">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Control Plan</label>
+                    <input type="text" class="w-full px-3 py-2 border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-blue-600 outline-none text-sm control-input" placeholder="e.g., Inspect ladder, secure top &amp; base, maintain 3-point contact">
+                </div>
+            `;
+
+            container.appendChild(div);
+
+            if (data) {
+                div.querySelector('.task-input').value = data.task || '';
+                div.querySelector('.hazard-input').value = data.hazard || '';
+                div.querySelector('.sev-select').value = data.sev || '0';
+                div.querySelector('.prob-select').value = data.prob || '0';
+                div.querySelector('.control-input').value = data.control || '';
+                calcRisk(rowId);
+            }
+        };
+
+        window.removeRow = function(id) {
+            const el = document.getElementById(id);
+            if (el) el.remove();
+        };
+
+        window.calcRisk = function(rowId) {
+            const row = document.getElementById(rowId);
+            if (!row) return;
+            const s = parseInt(row.querySelector('.sev-select').value, 10);
+            const p = parseInt(row.querySelector('.prob-select').value, 10);
+            const out = row.querySelector('.rank-output');
+
+            out.className = 'w-full px-2.5 py-2 border rounded-xl text-center font-extrabold text-xs sm:text-sm rank-output ';
+
+            if (s > 0 && p > 0) {
+                const score = s * p;
+                if (score === 1) {
+                    out.value = '1 - Very Low';
+                    out.className += 'bg-emerald-100 text-emerald-900 border-emerald-300';
+                } else if (score === 2) {
+                    out.value = '2 - Low';
+                    out.className += 'bg-yellow-200 text-yellow-900 border-yellow-400';
+                } else if (score === 3) {
+                    out.value = '3 - Medium';
+                    out.className += 'bg-orange-200 text-orange-900 border-orange-400';
+                } else if (score === 4 || score === 6) {
+                    out.value = `${score} - High`;
+                    out.className += 'bg-orange-500 text-white border-orange-600';
+                } else {
+                    out.value = '9 - Extreme';
+                    out.className += 'bg-red-700 text-white border-red-800';
+                }
+            } else {
+                out.value = '';
+                out.className += 'bg-slate-200 text-slate-600 border-slate-300';
+            }
+        };
+
+        // =====================================================================
+        // 7. SIGNATURE PADS (High-DPI Safe)
+        // =====================================================================
+        function initPad(canvasId, existingDataUrl = '') {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return null;
+
+            const ratio = Math.max(window.devicePixelRatio || 1, 1);
+            const width = canvas.offsetWidth || canvas.parentElement?.offsetWidth || 300;
+            const height = canvas.offsetHeight || 144;
+
+            canvas.width = width * ratio;
+            canvas.height = height * ratio;
+            const ctx = canvas.getContext('2d');
+            ctx.scale(ratio, ratio);
+
+            if (!pads[canvasId]) {
+                pads[canvasId] = new SignaturePad(canvas, {
+                    penColor: '#0f172a',
+                    backgroundColor: 'rgba(255,255,255,0)'
+                });
+            } else {
+                pads[canvasId].clear();
+            }
+
+            if (existingDataUrl) {
+                pads[canvasId].fromDataURL(existingDataUrl, { ratio: 1, width, height });
+            }
+
+            return pads[canvasId];
+        }
+
+        function resizeAllPads() {
+            Object.keys(pads).forEach(canvasId => {
+                const canvas = document.getElementById(canvasId);
+                if (!canvas || canvas.offsetWidth === 0) return;
+                const pad = pads[canvasId];
+                const saved = !pad.isEmpty() ? pad.toDataURL() : '';
+                initPad(canvasId, saved);
+            });
+        }
+
+        let resizeDebounce = null;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeDebounce);
+            resizeDebounce = setTimeout(resizeAllPads, 250);
+        });
+
+        window.clearPad = function(canvasId) {
+            if (pads[canvasId]) pads[canvasId].clear();
+        };
+
+        window.submitSignature = function(displayId) {
+            const el = document.getElementById(displayId);
+            if (!el) return;
+            el.textContent = 'Signed: ' + new Date().toLocaleString();
+            el.classList.remove('text-slate-500');
+            el.classList.add('text-emerald-700', 'font-bold');
+            showToast('Signature timestamp stamped!', 'info');
+        };
+
+        window.addWorkerSignature = function(workerData = null) {
+            const container = document.getElementById('worker-signatures-container');
+            const uid = Date.now() + '-' + Math.floor(Math.random() * 10000);
+            const rowId = 'worker-row-' + uid;
+            const canvasId = 'sig-worker-' + uid;
+            const tsDisplayId = 'ts-' + uid;
+
+            const div = document.createElement('div');
+            div.id = rowId;
+            div.className = 'bg-slate-50 p-4 rounded-xl border border-slate-200 relative worker-row';
+            div.innerHTML = `
+                <button type="button" onclick="removeWorkerSig('${rowId}', '${canvasId}')" title="Remove Worker"
+                    class="absolute top-3 right-3 w-7 h-7 rounded-lg text-red-500 hover:bg-red-100 font-bold text-lg flex items-center justify-center transition">&times;</button>
+
+                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Worker Name</label>
+                <input type="text" class="worker-name-input w-full px-3.5 py-2.5 mb-3 rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-blue-600 outline-none text-sm pr-10" placeholder="Enter Worker Name">
+
+                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Signature</label>
+                <canvas id="${canvasId}" class="w-full h-36 bg-white border-2 border-dashed border-slate-300 rounded-xl touch-none cursor-crosshair"></canvas>
+
+                <div class="flex flex-wrap justify-between items-center gap-2 mt-3">
+                    <button type="button" onclick="clearPad('${canvasId}')" class="text-xs font-semibold text-red-600 hover:text-red-800 px-2 py-1 rounded hover:bg-red-50 transition">Clear Pad</button>
+                    <button type="button" onclick="submitSignature('${tsDisplayId}')" class="bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold px-3.5 py-2 rounded-lg shadow-xs transition">Stamp Signature</button>
+                </div>
+                <div id="${tsDisplayId}" class="timestamp-display text-xs text-slate-500 mt-2 font-mono text-right min-h-[1rem]"></div>
+            `;
+
+            container.appendChild(div);
+
+            if (workerData) {
+                div.querySelector('.worker-name-input').value = workerData.name || '';
+                const tsEl = div.querySelector('.timestamp-display');
+                if (workerData.ts) {
+                    tsEl.textContent = workerData.ts;
+                    tsEl.classList.remove('text-slate-500');
+                    tsEl.classList.add('text-emerald-700', 'font-bold');
+                }
+            }
+
+            requestAnimationFrame(() => {
+                setTimeout(() => {
+                    initPad(canvasId, workerData?.sig || '');
+                }, 80);
+            });
+        };
+
+        window.removeWorkerSig = function(rowId, canvasId) {
+            const el = document.getElementById(rowId);
+            if (el) el.remove();
+            if (pads[canvasId]) delete pads[canvasId];
+        };
+
+        // =====================================================================
+        // 8. FORM SERIALIZATION, RESET & RESTORATION
+        // =====================================================================
+        function setStatusBar(status) {
+            const bar = document.getElementById('form-status-bar');
+            const dot = document.getElementById('form-status-dot');
+            const txt = document.getElementById('form-status-text');
+
+            if (!status) {
+                bar.classList.add('hidden');
+                return;
+            }
+
+            bar.classList.remove('hidden', 'bg-amber-50', 'text-amber-900', 'border-amber-200', 'bg-emerald-50', 'text-emerald-900', 'border-emerald-200');
+            dot.classList.remove('bg-amber-500', 'bg-emerald-600');
+
+            if (status === 'completed') {
+                bar.classList.add('bg-emerald-50', 'text-emerald-900', 'border-emerald-200');
+                dot.classList.add('bg-emerald-600');
+                txt.textContent = 'Completed Document — Editing & submitting will update this record';
+            } else {
+                bar.classList.add('bg-amber-50', 'text-amber-900', 'border-amber-200');
+                dot.classList.add('bg-amber-500');
+                txt.textContent = 'Draft Mode — Save Draft or Submit when finished';
+            }
+        }
+
+        function resetForm(applyProfilePrefill = false) {
+            document.getElementById('doc-id').value = '';
+            setStatusBar(null);
+
+            document.querySelectorAll('#view-flha input[type="text"], #view-flha textarea').forEach(el => el.value = '');
+            document.querySelectorAll('#view-flha input[type="checkbox"], #view-flha input[type="radio"]').forEach(el => el.checked = false);
+
+            document.getElementById('risk-rows-container').innerHTML = '';
+            addRiskRow();
+
+            document.getElementById('other-hazards-list').innerHTML = '';
+            addOtherHazardField();
+
+            document.getElementById('other-ppe-list').innerHTML = '';
+            addPPEField();
+
+            document.getElementById('worker-signatures-container').innerHTML = '';
+            Object.keys(pads).forEach(key => {
+                if (key !== 'sig-supervisor') {
+                    delete pads[key];
+                } else {
+                    pads[key].clear();
+                }
+            });
+
+            const supTs = document.getElementById('ts-supervisor');
+            supTs.textContent = '';
+            supTs.classList.remove('text-emerald-700', 'font-bold');
+            supTs.classList.add('text-slate-500');
+
+            addWorkerSignature();
+
+            if (applyProfilePrefill && cachedProfile) {
+                if (cachedProfile.company) document.getElementById('company-name').value = cachedProfile.company;
+                if (cachedProfile.address) document.getElementById('site-address').value = cachedProfile.address;
+            }
+
+            updateAllBadges();
+            requestAnimationFrame(() => setTimeout(() => initPad('sig-supervisor'), 80));
+        }
+
+        function getFormDataObj() {
+            const data = {
+                details: {
+                    company: document.getElementById('company-name').value.trim(),
+                    project: document.getElementById('project-name').value.trim(),
+                    projNum: document.getElementById('project-number').value.trim(),
+                    address: document.getElementById('site-address').value.trim(),
+                    location: document.getElementById('task-location').value.trim(),
+                    emergency: document.getElementById('emergency-number').value.trim(),
+                    muster: document.getElementById('muster-point').value.trim(),
+                    supervisor: document.getElementById('supervisor-name-field').value.trim(),
+                    description: document.getElementById('description-work').value.trim()
+                },
+                hazards: [],
+                customHazards: [],
+                customPPE: [],
+                inspections: {
+                    tools_inspected: document.querySelector('input[name="tools_inspected"]:checked')?.value || '',
+                    equipment_inspected: document.querySelector('input[name="equipment_inspected"]:checked')?.value || '',
+                    ppe_inspected: document.querySelector('input[name="ppe_inspected"]:checked')?.value || ''
+                },
+                risks: [],
+                completion: {
+                    cleanup: document.querySelector('input[name="cleanup"]:checked')?.value || '',
+                    tools: document.querySelector('input[name="tools"]:checked')?.value || '',
+                    incidents: document.querySelector('input[name="incidents"]:checked')?.value || ''
+                },
+                signatures: {
+                    supervisor: {
+                        name: document.getElementById('supervisor-name-sig').value.trim(),
+                        ts: document.getElementById('ts-supervisor').textContent.trim(),
+                        sig: (pads['sig-supervisor'] && !pads['sig-supervisor'].isEmpty()) ? pads['sig-supervisor'].toDataURL() : ''
+                    },
+                    workers: []
+                }
+            };
+
+            // Standard Hazards + Standard PPE
+            document.querySelectorAll('#hazard-form input.hazard-cb:checked').forEach(cb => {
+                if (cb.value) data.hazards.push(cb.value);
+            });
+
+            // Custom Other Hazards
+            document.querySelectorAll('#other-hazards-list .other-hazard-row').forEach(row => {
+                const cb = row.querySelector('.custom-hazard-cb');
+                const val = row.querySelector('.custom-hazard-input').value.trim();
+                if (val) {
+                    data.customHazards.push({ text: val, checked: cb.checked });
+                }
+            });
+
+            // Custom PPE
+            document.querySelectorAll('#other-ppe-list .other-ppe-row').forEach(row => {
+                const cb = row.querySelector('.custom-ppe-cb');
+                const val = row.querySelector('.custom-ppe-input').value.trim();
+                if (val) {
+                    data.customPPE.push({ text: val, checked: cb.checked });
+                }
+            });
+
+            // Risk Matrix Rows
+            document.querySelectorAll('#risk-rows-container .risk-row').forEach(row => {
+                data.risks.push({
+                    task: row.querySelector('.task-input').value.trim(),
+                    hazard: row.querySelector('.hazard-input').value.trim(),
+                    sev: row.querySelector('.sev-select').value,
+                    prob: row.querySelector('.prob-select').value,
+                    control: row.querySelector('.control-input').value.trim()
+                });
+            });
+
+            // Worker Signatures
+            document.querySelectorAll('#worker-signatures-container .worker-row').forEach(row => {
+                const canvas = row.querySelector('canvas');
+                const pad = pads[canvas.id];
+                data.signatures.workers.push({
+                    name: row.querySelector('.worker-name-input').value.trim(),
+                    ts: row.querySelector('.timestamp-display').textContent.trim(),
+                    sig: (pad && !pad.isEmpty()) ? pad.toDataURL() : ''
+                });
+            });
+
+            return data;
+        }
+
+        function loadFormDataObj(data) {
+            document.getElementById('view-flha').classList.remove('hidden');
+            resetForm(false);
+
+            if (!data) return;
+
+            // 1. Job Details
+            const d = data.details || {};
+            document.getElementById('company-name').value = d.company || '';
+            document.getElementById('project-name').value = d.project || '';
+            document.getElementById('project-number').value = d.projNum || '';
+            document.getElementById('site-address').value = d.address || '';
+            document.getElementById('task-location').value = d.location || '';
+            document.getElementById('emergency-number').value = d.emergency || '';
+            document.getElementById('muster-point').value = d.muster || '';
+            document.getElementById('supervisor-name-field').value = d.supervisor || '';
+            document.getElementById('description-work').value = d.description || '';
+
+            // 2. Standard Hazards & Legacy Custom Hazards support
+            const legacyOther = [];
+            const legacyPPE = [];
+            if (Array.isArray(data.hazards)) {
+                data.hazards.forEach(val => {
+                    if (val.startsWith('Other: ')) {
+                        legacyOther.push({ text: val.replace('Other: ', ''), checked: true });
+                    } else if (val.startsWith('PPE: ')) {
+                        legacyPPE.push({ text: val.replace('PPE: ', ''), checked: true });
+                    } else {
+                        const cb = Array.from(document.querySelectorAll('#hazard-form input.hazard-cb')).find(el => el.value === val);
+                        if (cb) cb.checked = true;
+                    }
+                });
+            }
+
+            // Custom Other Hazards
+            const allCustomHazards = (Array.isArray(data.customHazards) && data.customHazards.length > 0) ? data.customHazards : legacyOther;
+            if (allCustomHazards.length > 0) {
+                document.getElementById('other-hazards-list').innerHTML = '';
+                allCustomHazards.forEach(item => addOtherHazardField(item.text, item.checked));
+            }
+
+            // Custom PPE
+            const allCustomPPE = (Array.isArray(data.customPPE) && data.customPPE.length > 0) ? data.customPPE : legacyPPE;
+            if (allCustomPPE.length > 0) {
+                document.getElementById('other-ppe-list').innerHTML = '';
+                allCustomPPE.forEach(item => addPPEField(item.text, item.checked));
+            }
+
+            // 3. Tools, Equipment & PPE Inspections (Restored!)
+            if (data.inspections) {
+                ['tools_inspected', 'equipment_inspected', 'ppe_inspected'].forEach(name => {
+                    const val = data.inspections[name];
+                    if (val) {
+                        const radio = document.querySelector(`input[name="${name}"][value="${val}"]`);
+                        if (radio) radio.checked = true;
+                    }
+                });
+            }
+
+            // 4. Risk Matrix
+            if (Array.isArray(data.risks) && data.risks.length > 0) {
+                document.getElementById('risk-rows-container').innerHTML = '';
+                data.risks.forEach(r => addRiskRow(r));
+            }
+
+            // 5. Job Completion Radios (Restored!)
+            if (data.completion) {
+                ['cleanup', 'tools', 'incidents'].forEach(name => {
+                    const val = data.completion[name];
+                    if (val) {
+                        const radio = document.querySelector(`input[name="${name}"][value="${val}"]`);
+                        if (radio) radio.checked = true;
+                    }
+                });
+            }
+
+            // 6. Supervisor Signature
+            if (data.signatures?.supervisor) {
+                const sup = data.signatures.supervisor;
+                document.getElementById('supervisor-name-sig').value = sup.name || '';
+                const supTsEl = document.getElementById('ts-supervisor');
+                if (sup.ts) {
+                    supTsEl.textContent = sup.ts;
+                    supTsEl.classList.remove('text-slate-500');
+                    supTsEl.classList.add('text-emerald-700', 'font-bold');
+                }
+                requestAnimationFrame(() => {
+                    setTimeout(() => initPad('sig-supervisor', sup.sig || ''), 120);
+                });
+            }
+
+            // 7. Worker Signatures
+            if (Array.isArray(data.signatures?.workers) && data.signatures.workers.length > 0) {
+                document.getElementById('worker-signatures-container').innerHTML = '';
+                Object.keys(pads).forEach(k => { if (k !== 'sig-supervisor') delete pads[k]; });
+                data.signatures.workers.forEach(w => addWorkerSignature(w));
+            }
+
+            updateAllBadges();
+        }
+
+        // =====================================================================
+        // 9. FIRESTORE PERSISTENCE (STRICT PATHS & JS-MEMORY SORTING)
+        // =====================================================================
+
+        // Company Profile
+        async function loadCompanyProfile(prefillIfEmpty = false) {
+            if (!currentUser) return;
+            try {
+                const profRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'profile', 'company');
+                const snap = await getDoc(profRef);
+                if (snap.exists()) {
+                    cachedProfile = snap.data();
+                    document.getElementById('profile-company').value = cachedProfile.company || '';
+                    document.getElementById('profile-address').value = cachedProfile.address || '';
+                    document.getElementById('profile-email').value = cachedProfile.email || '';
+                    document.getElementById('profile-phone').value = cachedProfile.phone || '';
+                    document.getElementById('profile-manager').value = cachedProfile.manager || '';
+
+                    if (prefillIfEmpty && !document.getElementById('doc-id').value) {
+                        const compField = document.getElementById('company-name');
+                        const addrField = document.getElementById('site-address');
+                        if (!compField.value && cachedProfile.company) compField.value = cachedProfile.company;
+                        if (!addrField.value && cachedProfile.address) addrField.value = cachedProfile.address;
+                    }
+                }
+            } catch (err) {
+                console.error('Error loading profile:', err);
+            }
+        }
+
+        window.saveProfile = async function(btnEl) {
+            if (!currentUser) {
+                showToast('Please sign in to save your profile.', 'error');
+                return;
+            }
+            const originalText = btnEl.textContent;
+            btnEl.textContent = 'Saving...';
+            btnEl.disabled = true;
+
+            const profileData = {
+                company: document.getElementById('profile-company').value.trim(),
+                address: document.getElementById('profile-address').value.trim(),
+                email: document.getElementById('profile-email').value.trim(),
+                phone: document.getElementById('profile-phone').value.trim(),
+                manager: document.getElementById('profile-manager').value.trim(),
+                updatedAt: Date.now()
+            };
+
+            try {
+                const profRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'profile', 'company');
+                await setDoc(profRef, profileData, { merge: true });
+                cachedProfile = profileData;
+
+                // Pre-fill current form if blank
+                const compField = document.getElementById('company-name');
+                const addrField = document.getElementById('site-address');
+                if (profileData.company && !compField.value) compField.value = profileData.company;
+                if (profileData.address && !addrField.value) addrField.value = profileData.address;
+
+                showToast('Company profile saved!');
+                switchView('flha');
+            } catch (err) {
+                console.error(err);
+                showToast('Error saving profile: ' + err.message, 'error');
+            } finally {
+                btnEl.textContent = originalText;
+                btnEl.disabled = false;
+            }
+        };
+
+        // Save Draft
+        window.saveDraft = async function(btnEl) {
+            if (!currentUser) {
+                showToast('Please sign in to save drafts.', 'error');
+                return;
+            }
+
+            const originalText = btnEl ? btnEl.textContent : 'Save Draft';
+            if (btnEl) { btnEl.textContent = 'Saving...'; btnEl.disabled = true; }
+
+            const docId = document.getElementById('doc-id').value;
+            const formData = getFormDataObj();
+            const nowMs = Date.now();
+            const payload = {
+                uid: currentUser.uid,
+                status: 'draft',
+                updatedAt: nowMs,
+                data: formData
+            };
+
+            try {
+                const colRef = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'flhas');
+                if (docId) {
+                    await updateDoc(doc(colRef, docId), payload);
+                    showToast('Draft updated successfully!');
+                } else {
+                    const docRef = await addDoc(colRef, { ...payload, createdAt: nowMs });
+                    document.getElementById('doc-id').value = docRef.id;
+                    showToast('Draft saved successfully!');
+                }
+                setStatusBar('draft');
+            } catch (err) {
+                console.error(err);
+                showToast('Error saving draft: ' + err.message, 'error');
+            } finally {
+                if (btnEl) { btnEl.textContent = originalText; btnEl.disabled = false; }
+            }
+        };
+
+        // Submit Form (with validation + custom modal)
+        window.submitForm = function(btnEl) {
+            if (!currentUser) {
+                showToast('Please sign in to submit documents.', 'error');
+                return;
+            }
+
+            const formData = getFormDataObj();
+            if (!formData.details.project) {
+                showToast('Please enter a Project Name before submitting.', 'error');
+                document.getElementById('project-name').focus();
+                return;
+            }
+
+            showConfirmModal({
+                title: 'Submit FLHA Document?',
+                message: `Mark "${formData.details.project}" as Completed and save it to your history?`,
+                confirmText: 'Submit Document',
+                confirmStyle: 'success',
+                onConfirm: async () => {
+                    const originalText = btnEl ? btnEl.textContent : 'Submit Document';
+                    if (btnEl) { btnEl.textContent = 'Submitting...'; btnEl.disabled = true; }
+
+                    const docId = document.getElementById('doc-id').value;
+                    const nowMs = Date.now();
+                    const payload = {
+                        uid: currentUser.uid,
+                        status: 'completed',
+                        updatedAt: nowMs,
+                        data: formData
+                    };
+
+                    try {
+                        const colRef = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'flhas');
+                        if (docId) {
+                            await updateDoc(doc(colRef, docId), payload);
+                        } else {
+                            const docRef = await addDoc(colRef, { ...payload, createdAt: nowMs });
+                            document.getElementById('doc-id').value = docRef.id;
+                        }
+                        setStatusBar('completed');
+                        showToast('Document submitted successfully!');
+                        setTimeout(() => switchView('history'), 900);
+                    } catch (err) {
+                        console.error(err);
+                        showToast('Error submitting: ' + err.message, 'error');
+                    } finally {
+                        if (btnEl) { btnEl.textContent = originalText; btnEl.disabled = false; }
+                    }
+                }
+            });
+        };
+
+        // Helper to normalize Firestore Timestamp or epoch ms
+        function getTimestampMs(val) {
+            if (!val) return 0;
+            if (typeof val === 'number') return val;
+            if (typeof val.toMillis === 'function') return val.toMillis();
+            if (val.seconds) return val.seconds * 1000;
+            return new Date(val).getTime() || 0;
+        }
+
+        // Load History (Simple collection query + JS sorting per Firestore Rule 2)
+        async function loadHistory() {
+            if (!currentUser) return;
+            const listEl = document.getElementById('history-list');
+            const loadingEl = document.getElementById('history-loading');
+
+            listEl.innerHTML = '';
+            loadingEl.classList.remove('hidden');
+            loadingEl.textContent = 'Loading saved forms...';
+
+            try {
+                const colRef = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'flhas');
+                const snapshot = await getDocs(colRef);
+
+                cachedHistoryDocs = [];
+                snapshot.forEach(docSnap => {
+                    const d = docSnap.data();
+                    cachedHistoryDocs.push({
+                        id: docSnap.id,
+                        status: d.status || 'draft',
+                        updatedMs: getTimestampMs(d.updatedAt || d.createdAt),
+                        data: d.data || {}
+                    });
+                });
+
+                // Sort newest first in JS memory
+                cachedHistoryDocs.sort((a, b) => b.updatedMs - a.updatedMs);
+
+                loadingEl.classList.add('hidden');
+                renderHistoryList();
+            } catch (err) {
+                console.error(err);
+                loadingEl.textContent = 'Error loading saved forms: ' + err.message;
+            }
+        }
+
+        window.renderHistoryList = function() {
+            const listEl = document.getElementById('history-list');
+            const search = (document.getElementById('history-search').value || '').toLowerCase().trim();
+            const filter = document.getElementById('history-filter').value;
+
+            const filtered = cachedHistoryDocs.filter(item => {
+                if (filter !== 'all' && item.status !== filter) return false;
+                if (search) {
+                    const proj = (item.data?.details?.project || '').toLowerCase();
+                    const num = (item.data?.details?.projNum || '').toLowerCase();
+                    const loc = (item.data?.details?.location || '').toLowerCase();
+                    return proj.includes(search) || num.includes(search) || loc.includes(search);
+                }
+                return true;
+            });
+
+            if (filtered.length === 0) {
+                listEl.innerHTML = `
+                    <div class="text-center py-10 px-4 rounded-xl bg-slate-50 border border-dashed border-slate-300">
+                        <p class="text-slate-600 font-semibold text-sm">No matching FLHA forms found.</p>
+                        <p class="text-slate-400 text-xs mt-1">Create a new assessment or adjust your search filter.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            listEl.innerHTML = '';
+            filtered.forEach(item => {
+                const isDone = item.status === 'completed';
+                const badgeClass = isDone
+                    ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                    : 'bg-amber-100 text-amber-800 border-amber-200';
+                const dateStr = item.updatedMs ? new Date(item.updatedMs).toLocaleString() : 'N/A';
+                const projName = item.data?.details?.project || 'Untitled Project';
+                const projNum = item.data?.details?.projNum ? `#${item.data.details.projNum}` : '';
+                const taskLoc = item.data?.details?.location || '';
+
+                const card = document.createElement('div');
+                card.className = 'bg-slate-50 hover:bg-white p-4 rounded-xl border border-slate-200 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3';
+                card.innerHTML = `
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="font-bold text-slate-900 text-sm sm:text-base truncate">${escapeHtml(projName)}</span>
+                            ${projNum ? `<span class="text-xs font-mono text-slate-500">${escapeHtml(projNum)}</span>` : ''}
+                            <span class="px-2 py-0.5 rounded-full text-[11px] font-bold border ${badgeClass}">${item.status.toUpperCase()}</span>
+                        </div>
+                        <div class="text-xs text-slate-500 mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
+                            <span>Updated: ${escapeHtml(dateStr)}</span>
+                            ${taskLoc ? `<span>&bull; ${escapeHtml(taskLoc)}</span>` : ''}
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                        <button type="button" onclick="loadDoc('${item.id}')"
+                            class="px-3.5 py-2 rounded-lg bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold transition">
+                            ${isDone ? 'View / Edit' : 'Edit Draft'}
+                        </button>
+                        <button type="button" onclick="deleteDocConfirm('${item.id}', '${escapeJsStr(projName)}')"
+                            class="px-3 py-2 rounded-lg bg-white hover:bg-red-50 text-red-600 border border-red-200 text-xs font-bold transition">
+                            Delete
+                        </button>
+                    </div>
+                `;
+                listEl.appendChild(card);
+            });
+        };
+
+        window.loadDoc = async function(id) {
+            if (!currentUser) return;
+            try {
+                const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'flhas', id);
+                const snap = await getDoc(docRef);
+                if (snap.exists()) {
+                    const record = snap.data();
+                    switchView('flha');
+                    loadFormDataObj(record.data);
+                    document.getElementById('doc-id').value = id;
+                    setStatusBar(record.status || 'draft');
+                    showToast('Loaded saved FLHA form.', 'info');
+                } else {
+                    showToast('Document not found.', 'error');
+                }
+            } catch (err) {
+                console.error(err);
+                showToast('Error loading document: ' + err.message, 'error');
+            }
+        };
+
+        window.deleteDocConfirm = function(id, projName) {
+            showConfirmModal({
+                title: 'Delete Saved Form?',
+                message: `Are you sure you want to permanently delete "${projName}"? This cannot be undone.`,
+                confirmText: 'Delete',
+                confirmStyle: 'danger',
+                onConfirm: async () => {
+                    if (!currentUser) return;
+                    try {
+                        await deleteDoc(doc(db, 'artifacts', appId, 'users', currentUser.uid, 'flhas', id));
+                        cachedHistoryDocs = cachedHistoryDocs.filter(item => item.id !== id);
+                        renderHistoryList();
+                        if (document.getElementById('doc-id').value === id) {
+                            document.getElementById('doc-id').value = '';
+                            setStatusBar(null);
+                        }
+                        showToast('Form deleted.');
+                    } catch (err) {
+                        console.error(err);
+                        showToast('Error deleting form: ' + err.message, 'error');
+                    }
+                }
+            });
+        };
+
+        function escapeHtml(str) {
+            return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+        }
+        function escapeJsStr(str) {
+            return String(str).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        }
+
+        // =====================================================================
+        // 10. PDF GENERATION (jsPDF + AutoTable)
+        // =====================================================================
+        window.generatePDF = function() {
+            try {
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF({ unit: 'mm', format: 'letter' });
+                const data = getFormDataObj();
+
+                // Navy Banner Header
+                pdf.setFillColor(15, 23, 42);
+                pdf.rect(0, 0, 216, 26, 'F');
+                pdf.setFillColor(251, 191, 36);
+                pdf.rect(0, 26, 216, 1.5, 'F');
+
+                pdf.setTextColor(255, 255, 255);
+                pdf.setFont('helvetica', 'bold');
+                pdf.setFontSize(16);
+                pdf.text('FIELD LEVEL HAZARD ASSESSMENT (FLHA)', 14, 13);
+                pdf.setFont('helvetica', 'normal');
+                pdf.setFontSize(9);
+                pdf.text(`Generated: ${new Date().toLocaleString()}`, 14, 20);
+
+                pdf.setTextColor(15, 23, 42);
+                let yPos = 35;
+
+                // Job Details Table
+                pdf.autoTable({
+                    startY: yPos,
+                    theme: 'grid',
+                    head: [['Job Details', '']],
+                    body: [
+                        [`Company: ${data.details.company || 'N/A'}`, `Project: ${data.details.project || 'N/A'} ${data.details.projNum ? '(#' + data.details.projNum + ')' : ''}`],
+                        [`Site Address: ${data.details.address || 'N/A'}`, `Task Location: ${data.details.location || 'N/A'}`],
+                        [`Emergency #: ${data.details.emergency || 'N/A'}`, `Muster Point: ${data.details.muster || 'N/A'}`],
+                        [`Supervisor: ${data.details.supervisor || 'N/A'}`, `Description: ${data.details.description || 'N/A'}`]
+                    ],
+                    headStyles: { fillColor: [30, 58, 138], fontSize: 10 },
+                    styles: { fontSize: 8.5, cellPadding: 2.5 },
+                    columnStyles: { 0: { cellWidth: 94 }, 1: { cellWidth: 94 } }
+                });
+                yPos = pdf.lastAutoTable.finalY + 8;
+
+                // Identified Hazards & PPE
+                const identifiedList = [...data.hazards];
+                data.customHazards.forEach(h => { if (h.checked) identifiedList.push('Other: ' + h.text); });
+                data.customPPE.forEach(p => { if (p.checked) identifiedList.push('Additional PPE: ' + p.text); });
+
+                pdf.setFont('helvetica', 'bold');
+                pdf.setFontSize(11);
+                pdf.text('Identified Hazards & Required PPE', 14, yPos);
+                yPos += 5;
+
+                pdf.setFont('helvetica', 'normal');
+                pdf.setFontSize(8.5);
+                const hazText = identifiedList.length > 0 ? identifiedList.join('  |  ') : 'No hazards or PPE selected.';
+                const hazLines = pdf.splitTextToSize(hazText, 188);
+                pdf.text(hazLines, 14, yPos);
+                yPos += (hazLines.length * 4.5) + 6;
+
+                // Pre-Use Inspections
+                if (yPos > 240) { pdf.addPage(); yPos = 20; }
+                pdf.setFont('helvetica', 'bold');
+                pdf.setFontSize(11);
+                pdf.text('Tools, Equipment & PPE Pre-Use Inspection', 14, yPos);
+                yPos += 5;
+                pdf.setFont('helvetica', 'normal');
+                pdf.setFontSize(9);
+                pdf.text(`Tools inspected & in good order: [ ${data.inspections.tools_inspected || 'N/A'} ]`, 14, yPos);
+                yPos += 5;
+                pdf.text(`Equipment inspected & in good order: [ ${data.inspections.equipment_inspected || 'N/A'} ]`, 14, yPos);
+                yPos += 5;
+                pdf.text(`PPE inspected & in good order: [ ${data.inspections.ppe_inspected || 'N/A'} ]`, 14, yPos);
+                yPos += 8;
+
+                // Risk Assessment Matrix Table
+                if (yPos > 230) { pdf.addPage(); yPos = 20; }
+                pdf.setFont('helvetica', 'bold');
+                pdf.setFontSize(11);
+                pdf.text('Risk Assessment Matrix', 14, yPos);
+                yPos += 4;
+
+                const matrixRows = data.risks
+                    .filter(r => r.task || r.hazard || r.control)
+                    .map(r => {
+                        const s = parseInt(r.sev, 10) || 0;
+                        const p = parseInt(r.prob, 10) || 0;
+                        const rank = (s > 0 && p > 0) ? String(s * p) : '-';
+                        return [r.task, r.hazard, rank, r.control];
+                    });
+
+                pdf.autoTable({
+                    startY: yPos,
+                    head: [['Task', 'Hazard', 'Risk Rank', 'Control Plan']],
+                    body: matrixRows.length > 0 ? matrixRows : [['-', 'No hazards entered', '-', '-']],
+                    theme: 'grid',
+                    styles: { fontSize: 8.5, cellPadding: 2.5 },
+                    headStyles: { fillColor: [30, 58, 138] },
+                    columnStyles: { 2: { halign: 'center', cellWidth: 22 } }
+                });
+                yPos = pdf.lastAutoTable.finalY + 10;
+
+                // Job Completion
+                if (yPos > 245) { pdf.addPage(); yPos = 20; }
+                pdf.setFont('helvetica', 'bold');
+                pdf.setFontSize(11);
+                pdf.text('Job Completion Check', 14, yPos);
+                yPos += 5;
+                pdf.setFont('helvetica', 'normal');
+                pdf.setFontSize(9);
+                pdf.text(
+                    `Area Cleaned Up: [ ${data.completion.cleanup || 'N/A'} ]     All Tools Removed: [ ${data.completion.tools || 'N/A'} ]     Incidents/Injuries: [ ${data.completion.incidents || 'N/A'} ]`,
+                    14,
+                    yPos
+                );
+                yPos += 10;
+
+                // Signatures
+                if (yPos > 215) { pdf.addPage(); yPos = 20; }
+                pdf.setFont('helvetica', 'bold');
+                pdf.setFontSize(11);
+                pdf.text('Signatures', 14, yPos);
+                yPos += 7;
+
+                // Supervisor Signature
+                pdf.setFont('helvetica', 'normal');
+                pdf.setFontSize(9);
+                pdf.text(`Supervisor: ${data.signatures.supervisor.name || 'N/A'}`, 14, yPos);
+                pdf.text(`Timestamp: ${data.signatures.supervisor.ts || 'Not stamped'}`, 105, yPos);
+                if (data.signatures.supervisor.sig) {
+                    pdf.addImage(data.signatures.supervisor.sig, 'PNG', 14, yPos + 2, 55, 22);
+                }
+                yPos += 30;
+
+                // Worker Signatures
+                data.signatures.workers.forEach((w, idx) => {
+                    if (yPos > 240) { pdf.addPage(); yPos = 20; }
+                    pdf.text(`Worker ${idx + 1}: ${w.name || 'N/A'}`, 14, yPos);
+                    pdf.text(`Timestamp: ${w.ts || 'Not stamped'}`, 105, yPos);
+                    if (w.sig) {
+                        pdf.addImage(w.sig, 'PNG', 14, yPos + 2, 55, 22);
+                    }
+                    yPos += 30;
+                });
+
+                const safeProj = (data.details.project || 'Report').replace(/[^a-z0-9_-]/gi, '_');
+                pdf.save(`FLHA_${safeProj}.pdf`);
+                showToast('PDF downloaded successfully!');
+            } catch (err) {
+                console.error(err);
+                showToast('Error generating PDF: ' + err.message, 'error');
+            }
+        };
+
+        // =====================================================================
+        // 11. DRAFT EMAIL LINK
+        // =====================================================================
+        document.getElementById('email-link').addEventListener('click', function() {
+            const loc = document.getElementById('task-location').value.trim() || 'Site';
+            const proj = document.getElementById('project-number').value.trim() || document.getElementById('project-name').value.trim() || '';
+            const subject = encodeURIComponent(`FLHA Report - ${proj ? proj + ' - ' : ''}${loc} - ${new Date().toLocaleDateString()}`);
+            const body = encodeURIComponent("Please find the attached Field Level Hazard Assessment (FLHA) report for today's work.\n\n[Attach the downloaded PDF file here]");
+            this.href = `mailto:?subject=${subject}&body=${body}`;
+        });
+    </script>
+</body>
+</html>
